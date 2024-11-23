@@ -179,12 +179,12 @@ random and error terms, respectively.  `Z` can be replaced with an identity matr
 - `itol` :  A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
 - `tol0` :  A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
 - `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
-- `ρ` : A tunning parameter controlling ``\\tau^2``. Default is `0.001`.
+- `ρ` : A tunning parameter controlling ``\\tau^2`` by ``max(\\tau^2,\\rho)`` or ``\\Sigma_1`` by adding ``|eigmin(V2))+ρ|*I``. Default is `0.001`.
 - `LogP` : Boolean. Default is `false`.  Returns ``-\\log_{10}{P}`` instead of LOD scores if `true`.
 
 !!! Note
 - When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`. It works in most cases. If not,
-    can reduce both `tol0` and `tol` to `1e-4` or further.
+    can reduce both `tol0` and `tol` to `1e-4` or a less value.
 
 
 # Output

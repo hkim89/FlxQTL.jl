@@ -82,13 +82,13 @@ end
 
     gene2Scan(cross::Int64,Tg,Tc::Array{Float64,2},Λg,λc::Array{Float64,1},Y::Array{Float64,2},
              XX::Markers,Z::Array{Float64,2},LOCO::Bool=false;Xnul::Array{Float64,2}=ones(1,size(Y,2)),m=length(λc), 
-             df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),df_prior_τ2=1,τ2_Pr::Float64=1.0,itol=1e-4,tol0=1e-3,tol::Float64=1e-4)
+             df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),itol=1e-4,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
     gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,Z::Array{Float64,2},LOCO::Bool=false;m=size(Y,1),
-             Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),df_prior_τ2=1,τ2_Pr::Float64=1.0,
-             itol=1e-3,tol0=1e-3,tol::Float64=1e-4)
+             Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),
+             itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
     gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;m=size(Y,1),
                    Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1, Prior::Matrix{Float64}=cov(Y,dims=2),
-                 df_Rprior=m+1,Rprior=diagm(ones(m)),kmin::Int64=1,itol=1e-4,tol0=1e-3,tol::Float64=1e-4)
+                   kmin::Int64=1,itol=1e-4,tol0=1e-3,tol::Float64=1e-4)
     
     
 
@@ -122,12 +122,8 @@ random and error terms, respectively.  `Z` can be replaced with an identity matr
 - `Xnul` :  A matrix of covariates. Default is intercepts (1's).  Unless adding covariates, just leave as it is.  See [`geneScan`](@ref).
 - `Prior`: A positive definite scale matrix, ``\\Psi``, of Inverse-Wishart prior distributon for the residual error matrix, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
            ``cov(Y,dims=2)`` (empirical) is default.
-- `df_prior`: degrees of freedom, ``\\nu_0`` of Inverse-Wishart prior distributon for the residual error matrix.  `m+1` (non-informative) is default.
-- `df_prior_τ2`: degree of freedom, ``\\rho`` of scaled Inverse-``\\Chi^2`` prior distribution for ``\\tau^2``. `1` is default.
-- `τ2_Pr`: a positive scaled parameter of scaled Inverse-``\\Chi^2`` prior distribution for ``\\tau^2``, i.e., ``\\tau^2 \\sim Scale-inv \\Chi^2(\\rho, \\tau_0)``. ``1.0`` is default.           
-- `Rprior`: A positive definite scale matrix, ``\\Psi_0``, of Inverse-Wishart prior distribution for the random effect matrix, i.e. ``\\Sigma_1 \\sim W^{-1}_m (\\Psi_0, \\nu)``.  
-           ``I_m`` (for non-informative prior) is default.
-- `df_Rprior`: degrees of freedom, ``\\nu`` of Inverse-Wishart prior distributon for \\Sigma_1.  `m+1` (non-informative) is default.
+- `df_prior`: degrees of freedom, ``\\nu_0`` of Inverse-Wishart prior distributon for the residual error matrix.  `m+1` (non-informative) is default.        
+- `ρ` : A tunning parameter controlling ``\\tau^2`` by ``max(\\tau^2,\\rho)`` or ``\\Sigma_1`` by adding ``|eigmin(V2))+ρ|*I``. Default is `0.001`.
 - `itol` :  A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
 - `tol0` :  A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
 - `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
@@ -135,7 +131,7 @@ random and error terms, respectively.  `Z` can be replaced with an identity matr
 !!! Note
 
 - When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`. It works in most cases. If not,
-    can reduce both `tol0` and `tol` to `1e-4` or further.
+    can reduce both `tol0` and `tol` to `1e-4` or a less value.
 
 
 # Output
@@ -147,7 +143,7 @@ random and error terms, respectively.  `Z` can be replaced with an identity matr
 function gene2Scan(cross::Int64,Tg,Tc::Array{Float64,2},Λg,λc::Array{Float64,1},
         Y::Array{Float64,2},XX::Markers,Z::Array{Float64,2},LOCO::Bool=false;
         Xnul::Array{Float64,2}=ones(1,size(Y,2)), m=length(λc),
-        df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),df_prior_τ2=1,τ2_Pr::Float64=1.0,
+        df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),
         kmin::Int64=1,itol=1e-4,tol0=1e-3,tol::Float64=1e-4)
 
     p=Int(size(XX.X,1)/cross);q=size(Z,2);
@@ -171,20 +167,21 @@ function gene2Scan(cross::Int64,Tg,Tc::Array{Float64,2},Λg,λc::Array{Float64,1
             X0=mat2array(cross,XX.X)
          end
     if (LOCO)
-        est0=[];
+        @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,Tg[:,:,1])
+        est0=nulScan(init,kmin,Λg[:,1],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
+
          for i=1:nChr
                 maridx=findall(XX.chr.==Chr[i]);
 #                 Xnul_t=Xnul*Tg[:,:,i]';
-       @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,Tg[:,:,i])
+       
                 if (cross!=1)
        @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,X0[maridx,:,:],cross)
                    else
        @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,XX.X[maridx,:],cross)
                  end
 
-           est=nulScan(init,kmin,Λg[:,i],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ,df_prior_τ2,τ2_Pr;itol=itol,tol=tol)
-          marker2Scan!(LODs,maridx,q,kmin,cross,est,Λg[:,i],λc,Y2,Xnul_t,X1,Z1,df_prior,Ψ,df_prior_τ2,τ2_Pr;tol0=tol0,tol1=tol)
-                est0=[est0;est];
+          marker2Scan!(LODs,maridx,q,kmin,cross,est,Λg[:,i],λc,Y2,Xnul_t,X1,Z1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol)
+                # est0=[est0;est];
             end
 
      else #no LOCO
@@ -196,10 +193,10 @@ function gene2Scan(cross::Int64,Tg,Tc::Array{Float64,2},Λg,λc::Array{Float64,1
                    Y1,X1=transForm(Tg,Y1,XX.X,cross)
                  end
 
-                  est0=nulScan(init,kmin,Λg,λc,Y1,Xnul_t,Z1,Σ1,df_prior,Ψ,df_prior_τ2,τ2_Pr;itol=itol,tol=tol)
+                  est0=nulScan(init,kmin,Λg,λc,Y1,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
              for i=1:nChr
             maridx=findall(XX.chr.==Chr[i])
-            marker2Scan!(LODs,maridx,q,kmin,cross,est0,Λg,λc,Y1,Xnul_t,X1,Z1,df_prior,Ψ,df_prior_τ2,τ2_Pr;tol0=tol0,tol1=tol)
+            marker2Scan!(LODs,maridx,q,kmin,cross,est0,Λg,λc,Y1,Xnul_t,X1,Z1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol)
              end
     end
     return LODs,est0
@@ -208,10 +205,10 @@ end
 ##MVLMM
 function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;m=size(Y,1),
                    Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1, Prior::Matrix{Float64}=cov(Y,dims=2),
-                 df_Rprior=m+1,Rprior=diagm(ones(m)),kmin::Int64=1,itol=1e-4,tol0=1e-3,tol::Float64=1e-4)
+                  kmin::Int64=1,itol=1e-4,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
 
     p=Int(size(XX.X,1)/cross);
-    Chr=unique(XX.chr); nChr=length(Chr); LODs=zeros(p,p);est0=[];
+    Chr=unique(XX.chr); nChr=length(Chr); LODs=zeros(p,p);
 
     #check the prior
     if (!isposdef(Prior))
@@ -223,20 +220,22 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Boo
             X0=mat2array(cross,XX.X)
          end
     if (LOCO)
+        #null scan
+        @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,@view Tg[:,:,1])
+        est0=nulScan(init,kmin,Λg[:,1],Y,Xnul_t,df_prior,Prior,df_Rprior,Rprior;itol=itol,tol=tol)
+
             for i=1:nChr
                 maridx=findall(XX.chr.==Chr[i]);
 #                 Xnul_t=Xnul*Tg[:,:,i]';
-             @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,@view Tg[:,:,i])
+            
                 if (cross!=1)
                    Y,X=transForm(Tg[:,:,i],Y,X0[maridx,:,:],cross)
                    else
                    Y,X=transForm(Tg[:,:,i],Y,XX.X[maridx,:],cross)
                  end
 
-                   
-                 est=nulScan(init,kmin,Λg[:,i],Y,Xnul_t,df_prior,Prior,df_Rprior,Rprior;itol=itol,tol=tol)
-                marker2Scan!(LODs,maridx,m,kmin,cross,est,Λg[:,i],Y,Xnul_t,X,df_prior,Prior,df_Rprior,Rprior;tol0=tol0,tol1=tol)
-                est0=[est0;est];
+                marker2Scan!(LODs,maridx,m,kmin,cross,est,Λg[:,i],Y,Xnul_t,X,df_prior,Prior;ρ=0.001,tol0=tol0,tol1=tol)
+                # est0=[est0;est];
             end
 
         else #no LOCO
@@ -252,7 +251,7 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Boo
              est0=nulScan(init,kmin,Λg,Y,Xnul_t,df_prior,Prior,df_Rprior,Rprior;itol=itol,tol=tol)
         for i=1:nChr
             maridx=findall(XX.chr.==Chr[i])
-            marker2Scan!(LODs,maridx,m,kmin,cross,est0,Λg,Y,Xnul_t,X,df_prior,Prior,df_Rprior,Rprior;tol0=tol0,tol1=tol)
+            marker2Scan!(LODs,maridx,m,kmin,cross,est0,Λg,Y,Xnul_t,X,df_prior,Prior;ρ=ρ,tol0=tol0,tol1=tol)
         end
 
         end #LOCO
@@ -262,7 +261,7 @@ end
 
 #new version adding estimating Kc inside
 function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,Z::Array{Float64,2},LOCO::Bool=false;m=size(Y,1),
-    Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),df_prior_τ2=1,τ2_Pr::Float64=1.0,kmin::Int64=1,
+    Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),kmin::Int64=1,
    itol=1e-3,tol0=1e-3,tol::Float64=1e-4)
 
     p=Int(size(XX.X,1)/cross);q=size(Z,2);
@@ -285,19 +284,22 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,Z::Array{
             X0=mat2array(cross,XX.X)
          end
     if (LOCO)
-        est0=[];
+        # est0=[];
+        # null scan
+        @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul, Tg[:,:,1])
+        est0=nulScan(init,kmin,Λg[:,1],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
+
          for i=1:nChr
                 maridx=findall(XX.chr.==Chr[i]);
-                @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul, Tg[:,:,i])
+              
                  if (cross!=1) #individual-wise tranformation 
              @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,X0[maridx,:,:],cross)
                    else
              @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,XX.X[maridx,:],cross)
                  end
 
-                 est=nulScan(init,kmin,Λg[:,i],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ,df_prior_τ2,τ2_Pr;itol=itol,tol=tol)
-                 marker2Scan!(LODs,maridx,q,kmin,cross,est,Λg[:,i],λc,Y2,Xnul_t,X1,Z1,df_prior,Ψ,df_prior_τ2,τ2_Pr;tol0=tol0,tol1=tol) 
-                est0=[est0;est];
+             marker2Scan!(LODs,maridx,q,kmin,cross,est,Λg[:,i],λc,Y2,Xnul_t,X1,Z1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol) 
+                # est0=[est0;est];
             end
 
      else #no LOCO
@@ -308,11 +310,11 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,Z::Array{
           else
           Y1,X1=transForm(Tg,Y1,XX.X,cross)
         end
-                est0=nulScan(init,kmin,Λg,λc,Y1,Xnul_t,Z1,Σ1,df_prior,Ψ,df_prior_τ2,τ2_Pr;itol=itol,tol=tol) 
+                est0=nulScan(init,kmin,Λg,λc,Y1,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol) 
             
              for i=1:nChr
             maridx=findall(XX.chr.==Chr[i])
-            marker2Scan!(LODs,maridx,q,kmin,cross,est0,Λg,λc,Y1,Xnul_t,X1,Z1,df_prior,Ψ,df_prior_τ2,τ2_Pr;tol0=tol0,tol1=tol)
+            marker2Scan!(LODs,maridx,q,kmin,cross,est0,Λg,λc,Y1,Xnul_t,X1,Z1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol)
 
              end
     end
