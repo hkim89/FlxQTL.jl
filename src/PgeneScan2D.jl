@@ -41,7 +41,7 @@ function marker2Scan!(LODs,mindex::Array{Int64,1},q,kmin,cross,Nullpar::Approx,�
 end
 
 #MVLMM
-function marker2Scan!(LODs,mindex::Array{Int64,1},m,kmin,cross,Nullpar::Result,λg,Y1,Xnul_t,X1,ν₀,Ψ,ν,Ψ₀;tol0=1e-3,tol1=1e-4)
+function marker2Scan!(LODs,mindex::Array{Int64,1},m,kmin,cross,Nullpar::Result,λg,Y1,Xnul_t,X1,ν₀,Ψ;tol0=1e-3,tol1=1e-4,ρ)
     M=length(mindex)
     if (cross!=1)
 
@@ -50,9 +50,9 @@ function marker2Scan!(LODs,mindex::Array{Int64,1},m,kmin,cross,Nullpar::Result,�
                for j=1:M-1
                lod=@distributed (vcat) for l=j+1:M
                            XX=@views vcat(Xnul_t,X1[j,2:end,:],X1[l,2:end,:])
-                           B0,Vc,Σ,loglik0 = ecmLMM(Y1,XX,B0,Nullpar.Vc,Nullpar.Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol0)
+                           B0,Vc,Σ,loglik0 = ecmLMM(Y1,XX,B0,Nullpar.Vc,Nullpar.Σ,λg,ν₀,Ψ;ν=0,Ψ₀=[],tol=tol0)
                             lod0=(loglik0-Nullpar.loglik)/log(10)
-                           est1=ecmNestrvAG(lod0,kmin,Y1,XX,B0,Vc,Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol1)
+                           est1=ecmNestrvAG(lod0,kmin,Y1,XX,B0,Vc,Σ,λg,ν₀,Ψ;tol=tol1,ρ=ρ)
                            (est1.loglik-Nullpar.loglik)/log(10)
                                        end
                @views LODs[mindex[j+1:end],mindex[j]] .=lod
@@ -64,9 +64,9 @@ function marker2Scan!(LODs,mindex::Array{Int64,1},m,kmin,cross,Nullpar::Result,�
                for j=1:M-1
                 lod=@distributed (vcat) for l=j+1:M
                          XX=@views vcat(Xnul_t,X1[[j,l],:])
-                         B0,Vc,Σ,loglik0 = ecmLMM(Y1,XX,B0,Nullpar.Vc,Nullpar.Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol0)
+                         B0,Vc,Σ,loglik0 = ecmLMM(Y1,XX,B0,Nullpar.Vc,Nullpar.Σ,λg,ν₀,Ψ;ν=0,Ψ₀=[],tol=tol0)
                              lod0=(loglik0-Nullpar.loglik)/log(10)
-                         est1=ecmNestrvAG(lod0,kmin,Y1,XX,B0,Vc,Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol1)
+                         est1=ecmNestrvAG(lod0,kmin,Y1,XX,B0,Vc,Σ,λg,ν₀,Ψ;tol=tol1,ρ=ρ)
                         (est1.loglik-Nullpar.loglik)/log(10)
                 #  println([j l])
                                        end
@@ -85,10 +85,10 @@ end
              df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),itol=1e-4,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
     gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,Z::Array{Float64,2},LOCO::Bool=false;m=size(Y,1),
              Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),
-             itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
+             df_Rprior=m+1,Rprior=diagm(ones(m)),itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
     gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;m=size(Y,1),
                    Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1, Prior::Matrix{Float64}=cov(Y,dims=2),
-                   kmin::Int64=1,itol=1e-4,tol0=1e-3,tol::Float64=1e-4)
+                   kmin::Int64=1,itol=1e-4,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
     
     
 
@@ -122,7 +122,10 @@ random and error terms, respectively.  `Z` can be replaced with an identity matr
 - `Xnul` :  A matrix of covariates. Default is intercepts (1's).  Unless adding covariates, just leave as it is.  See [`geneScan`](@ref).
 - `Prior`: A positive definite scale matrix, ``\\Psi``, of Inverse-Wishart prior distributon for the residual error matrix, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
            ``cov(Y,dims=2)`` (empirical) is default.
-- `df_prior`: degrees of freedom, ``\\nu_0`` of Inverse-Wishart prior distributon for the residual error matrix.  `m+1` (non-informative) is default.        
+- `df_prior`: degrees of freedom, ``\\nu_0`` of Inverse-Wishart prior distributon for the residual error matrix.  `m+1` (non-informative) is default.  
+- `Rprior`: A positive definite scale matrix, ``\\Psi_0``, of Inverse-Wishart prior distribution for the random effect matrix, i.e. ``\\Sigma_1 \\sim W^{-1}_m (\\Psi_0, \\nu)``.  
+           ``I_m`` (for non-informative prior) is default. 
+- `df_Rprior`: degrees of freedom, ``\\nu`` of Inverse-Wishart prior distributon for \\Sigma_1.  `m+1` (non-informative) is default.       
 - `ρ` : A tunning parameter controlling ``\\tau^2`` by ``max(\\tau^2,\\rho)`` or ``\\Sigma_1`` by adding ``|eigmin(V2))+ρ|*I``. Default is `0.001`.
 - `itol` :  A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
 - `tol0` :  A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
@@ -222,7 +225,7 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Boo
     if (LOCO)
         #null scan
         @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,@view Tg[:,:,1])
-        est0=nulScan(init,kmin,Λg[:,1],Y,Xnul_t,df_prior,Prior,df_Rprior,Rprior;itol=itol,tol=tol)
+        est0=nulScan(init,kmin,Λg[:,1],Y,Xnul_t,df_prior,Prior;itol=itol,tol=tol,ρ=ρ)
 
             for i=1:nChr
                 maridx=findall(XX.chr.==Chr[i]);
@@ -234,7 +237,7 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Boo
                    Y,X=transForm(Tg[:,:,i],Y,XX.X[maridx,:],cross)
                  end
 
-                marker2Scan!(LODs,maridx,m,kmin,cross,est,Λg[:,i],Y,Xnul_t,X,df_prior,Prior;ρ=0.001,tol0=tol0,tol1=tol)
+                marker2Scan!(LODs,maridx,m,kmin,cross,est,Λg[:,i],Y,Xnul_t,X,df_prior,Prior;ρ=ρ,tol0=tol0,tol1=tol)
                 # est0=[est0;est];
             end
 
@@ -248,7 +251,7 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Boo
                  end
 
 
-             est0=nulScan(init,kmin,Λg,Y,Xnul_t,df_prior,Prior,df_Rprior,Rprior;itol=itol,tol=tol)
+             est0=nulScan(init,kmin,Λg,Y,Xnul_t,df_prior,Prior;itol=itol,tol=tol,ρ=ρ)
         for i=1:nChr
             maridx=findall(XX.chr.==Chr[i])
             marker2Scan!(LODs,maridx,m,kmin,cross,est0,Λg,Y,Xnul_t,X,df_prior,Prior;ρ=ρ,tol0=tol0,tol1=tol)
@@ -261,14 +264,14 @@ end
 
 #new version adding estimating Kc inside
 function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,Z::Array{Float64,2},LOCO::Bool=false;m=size(Y,1),
-    Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),kmin::Int64=1,
-   itol=1e-3,tol0=1e-3,tol::Float64=1e-4)
+    Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),df_Rprior=m+1,Rprior=diagm(ones(m)),
+    kmin::Int64=1,itol=1e-3,tol0=1e-3,tol::Float64=1e-4)
 
     p=Int(size(XX.X,1)/cross);q=size(Z,2);
     LODs=zeros(p,p);  Chr=unique(XX.chr); nChr=length(Chr);
 
      ## picking up initial values for parameter estimation under the null hypothesis
-     init= getKc(Y;Z=Z, df_prior=df_prior, Prior=Prior,Xnul=Xnul,itol=itol,tol=tol0)
+     init= getKc(Y;Z=Z, df_prior=df_prior, Prior=Prior,df_Rprior=df_Rprior,Rprior=Rprior,Xnul=Xnul,itol=itol,tol=tol0)
      Tc, λc = K2eig(init.Kc) 
 
      if (Prior!= diagm(ones(m)))

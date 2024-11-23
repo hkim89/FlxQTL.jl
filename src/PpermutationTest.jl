@@ -106,7 +106,7 @@ end
 
 #MVLMM
 function permutation(nperm::Int64,cross::Int64,Y::Array{Float64,2},X::Union{Array{Float64,2},Array{Float64,3}},
-        Nullpar::Result,λg::Array{Float64,1},Xnul_t,ν₀,Ψ,ν,Ψ₀;tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
+        Nullpar::Result,λg::Array{Float64,1},Xnul_t,ν₀,Ψ;tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
 
      m=size(Y,1);
     kmin=1;lod=zeros(nperm);H1par=[]
@@ -118,7 +118,7 @@ function permutation(nperm::Int64,cross::Int64,Y::Array{Float64,2},X::Union{Arra
         Y2=permutY(Y,Nullpar.Vc,Nullpar.Σ,λg);
 
         #initial parameter values for permutations are from genome scanning under the null hypothesis.
-         perm_est0=nulScan(init,kmin,λg,Y2,Xnul_t,ν₀,Ψ,ν,Ψ₀;itol=tol0,tol=tol)
+         perm_est0=nulScan(init,kmin,λg,Y2,Xnul_t,ν₀,Ψ;itol=tol0,tol=tol,ρ=ρ)
         LODs,H1par0=marker1Scan(m,kmin,cross,perm_est0,λg,Y2,Xnul_t,X,ν₀,Ψ;ρ=ρ,tol0=tol0,tol1=tol)
     
          lod[l]= maximum(LODs);  H1par=[H1par; H1par0]
@@ -137,7 +137,7 @@ end
       permTest(nperm::Int64,cross,Kg,Kc,Y,XX::Markers,Z;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,
              Prior::Matrix{Float64}=cov(Y,dims=2),Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
       permTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,
-                 Prior::Matrix{Float64}=cov(Y,dims=2),df_Rprior=m+1,Rprior=diagm(ones(m)),Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4)
+                 Prior::Matrix{Float64}=cov(Y,dims=2),Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
    
 Implement permutation test to get thresholds at the levels of type 1 error, `α`.  Note that the last `permTest()` 
 is for the conventional MLMM: 
@@ -166,9 +166,6 @@ where `K` is a genetic kinship, ``\\Sigma_1, \\Sigma_2`` are covariance matrices
 - `Prior`: A positive definite scale matrix, ``\\Psi``, of Inverse-Wishart prior distributon for the residual error matrix, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
            ``cov(Y,dims=2)`` (empirical scale matrix) is default.
 - `df_prior`: degrees of freedom, ``\\nu_0`` of Inverse-Wishart prior distributon for the residual error matrix.  `m+1` (non-informative) is default.    
-- `Rprior`: A positive definite scale matrix, ``\\Psi_0``, of Inverse-Wishart prior distribution for the random effect matrix, i.e. ``\\Sigma_1 \\sim W^{-1}_m (\\Psi_0, \\nu)``.  
-           ``I_m`` (for non-informative prior) is default.
-- `df_Rprior`: degrees of freedom, ``\\nu`` of Inverse-Wishart prior distributon for \\Sigma_1.  `m+1` (non-informative) is default.
 - `ρ` : A tunning parameter controlling ``\\tau^2`` by ``max(\\tau^2,\\rho)`` or ``\\Sigma_1`` by adding ``|eigmin(V2))+ρ|*I``. Default is `0.001`.      
 - `itol` : A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
 - `tol0` : A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
@@ -214,12 +211,12 @@ end
 
 #MVLMM
 function permTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2),
-                 df_Rprior=m+1,Rprior=diagm(ones(m)),Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
+                 Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
     #permutation without LOCO
        Tg,λg=K2eig(Kg)
-       est0,Xnul_t,Y1,X1 = geneScan(cross,Tg,λg,Y,XX;tdata=true,m=m,df_prior=df_prior,Prior=Prior,df_Rprior=df_Rprior,
-                                    Rprior=Rprior,Xnul=Xnul,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
-       maxLODs, H1par_perm= permutation(nperm,cross,Y1,X1,est0,λg,Xnul_t,df_prior,Prior,df_Rprior,Rprior;tol0=tol0,tol=tol,ρ=ρ)
+       est0,Xnul_t,Y1,X1 = geneScan(cross,Tg,λg,Y,XX;tdata=true,m=m,df_prior=df_prior,Prior=Prior,
+                                    Xnul=Xnul,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
+       maxLODs, H1par_perm= permutation(nperm,cross,Y1,X1,est0,λg,Xnul_t,df_prior,Prior;tol0=tol0,tol=tol,ρ=ρ)
        maxLODs=convert(Array{Float64,1},maxLODs)
        cutoff= quantile(maxLODs,1.0.-pval)
     return maxLODs, H1par_perm, cutoff

@@ -372,7 +372,7 @@ end
 
 
 ###########
-#estimate Kc with prior
+#estimate Kc with  all priors
 function nul1Scan(init::Init0,kmin,Y,Xnul,Z,m,ν₀,Ψ,ν,Ψ₀;itol=1e-3,tol=1e-4)
        
       n=size(Y,2); λg=ones(n)
@@ -400,10 +400,10 @@ function nulScan(init::Init0,kmin,λg,Y1,Xnul_t;ρ=0.001,itol=1e-3,tol=1e-4)
 end
 
 #including prior
-function nulScan(init::Init0,kmin,λg,Y1,Xnul_t,ν₀,Ψ,ν,Ψ₀;itol=1e-3,tol=1e-4)
+function nulScan(init::Init0,kmin,λg,Y1,Xnul_t,ν₀,Ψ;itol=1e-3,tol=1e-4,ρ=0.001)
 
-        B0,Vc_0,Σ1,loglik0 = ecmLMM(Y1,Xnul_t,init.B,init.Vc,init.Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=itol)
-        nulpar=NestrvAG(kmin,Y1,Xnul_t,B0,Vc_0,Σ1,λg,ν₀,Ψ,ν,Ψ₀;tol=tol)
+        B0,Vc_0,Σ1,loglik0 = ecmLMM(Y1,Xnul_t,init.B,init.Vc,init.Σ,λg,ν₀,Ψ;ν=0,Ψ₀=[],tol=itol)
+        nulpar=NestrvAG(kmin,Y1,Xnul_t,B0,Vc_0,Σ1,λg,ν₀,Ψ;ν=0,Ψ₀=[],tol=tol,ρ=ρ)
 
        return nulpar
 end
