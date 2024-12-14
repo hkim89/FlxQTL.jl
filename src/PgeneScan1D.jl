@@ -159,15 +159,15 @@ random and error terms, respectively.  `Z` can be replaced with an identity matr
 - `Rprior`: A positive definite scale matrix, ``\\Psi_0``, of Inverse-Wishart prior distribution for the random effect matrix, i.e. ``\\Sigma_1 \\sim W^{-1}_m (\\Psi_0, \\nu)``.  
            ``I_m`` (for non-informative prior) is default. This is included in `gene1Scan()`.
 - `df_Rprior`: degrees of freedom, ``\\nu`` of Inverse-Wishart prior distributon for \\Sigma_1.  `m+1` (non-informative) is default. This is included in `gene1Scan()`.
-- `itol` :  A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
-- `tol0` :  A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
-- `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
+- `itol` :  A value of tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
+- `tol0` :  A value of tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
+- `tol` : A value of tolerance controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
 - `ρ` : A tunning parameter controlling ``\\tau^2`` by ``max(\\tau^2,\\rho)`` or ``\\Sigma_1`` by adding ``|eigmin(V2))+ρ|*I``. Default is `0.001`.
 - `LogP` : Boolean. Default is `false`.  Returns ``-\\log_{10}{P}`` instead of LOD scores if `true`.
 
 !!! Note
-- When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`. It works in most cases. If not,
-    can reduce both `tol0` and `tol` to `1e-4` or a less value.
+- When some LOD scores return negative values, we recommend reducing tolerence for ECM to `tol0 = 1e-4`. It works in most cases. If not,
+    it is possible to reduce both `tol0` and `tol` to `1e-4` or any smaller value.
 
 
 # Output

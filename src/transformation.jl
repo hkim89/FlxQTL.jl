@@ -234,8 +234,8 @@ Pre-estimate `Kc` by regressing `Y` on `Xnul`, i.e. estimating environmental cov
 - `Rprior`: A positive definite scale matrix, ``\\Psi_0``, of Inverse-Wishart prior distributon, i.e. ``\\Sigma_1 \\sim W^{-1}_m (\\Psi_0, \\nu)``.  
            ``I_m`` (for non-informative prior) is default.
 
-- `itol` :  A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
-- `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
+- `itol` :  A value of tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
+- `tol` : A value of tolerance controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
 
 
 # Output

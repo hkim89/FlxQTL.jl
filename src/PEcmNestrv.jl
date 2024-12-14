@@ -159,7 +159,7 @@ end
 
 #Z=I
 function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},B0::Array{Float64,2},
-        τ2_0::Float64,Σ::Array{Float64,2},λg::Array{Float64,1},λc::Array{Float64,1},ν₀,Ψ::Array{Float64,2};ρ=0.001;tol::Float64,numChr=0,nuMarker=0)
+        τ2_0::Float64,Σ::Array{Float64,2},λg::Array{Float64,1},λc::Array{Float64,1},ν₀,Ψ::Array{Float64,2};ρ=0.001,tol::Float64,numChr=0,nuMarker=0)
 
          symXs = fixX(X)
          m,n=size(Y);p=size(X,1)
@@ -178,7 +178,7 @@ function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},B0::Array{
 #          itrnum=1
         while (crit >=tol)
 
-            b1, τ1, Σ1, loglik1 = fullECM(Vg,Ve,Bnew,dev,Ghat,Θ,Y,X,symXs,b1,τ1,Σ1,λg,λc,m,n,ν₀,Ψ;,ρ=0.001,numChr=numChr,nuMarker=nuMarker)
+            b1, τ1, Σ1, loglik1 = fullECM(Vg,Ve,Bnew,dev,Ghat,Θ,Y,X,symXs,b1,τ1,Σ1,λg,λc,m,n,ν₀,Ψ;numChr=numChr,nuMarker=nuMarker)
         #,niter=itrnum)
             #some tweak for τ2
                  τ1[1] = max(τ1[1],ρ)
@@ -217,7 +217,7 @@ end
 
 
 function ecmNestrvAG(lod0::Float64,kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},Z::Array{Float64,2},B0::Array{Float64,2},
-         τ2_0::Float64,Σ::Array{Float64,2},λg::Array{Float64,1},λc::Array{Float64,1},ν₀,Ψ::Array{Float64,2};ρ=0.001;tol::Float64,numChr=0,nuMarker=0)
+         τ2_0::Float64,Σ::Array{Float64,2},λg::Array{Float64,1},λc::Array{Float64,1},ν₀,Ψ::Array{Float64,2};ρ=0.001,tol::Float64,numChr=0,nuMarker=0)
 
               if (lod0>0.0)
                 result = NestrvAG(kmin,Y,X,Z,B0,τ2_0,Σ,λg,λc,ν₀,Ψ;ρ=ρ,tol=tol,numChr=0,nuMarker=0)
@@ -250,7 +250,7 @@ function fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,symXs,B,Vc::Array{Float64,2},Σ,λg
           eStep!(Ghat,Θ,Y,X,B,Vc,Σ,λg,m)
           cmStep!(B_new,dev,Vg,Ve,Y,X,symXs,Ghat,Θ,λg,m)
           Σ_new=updateΣ(Ve,Ψ,ν₀,m,n)
-          if(!isempty(Ψ₀)) #getKc
+          if (!isempty(Ψ₀)) #getKc
               Vc_new=updateΣ(Vg,Ψ₀,ν,m,n)
           else #MVLMM
                Vc_new=mean(Vg;dims=3)[:,:,1]
@@ -340,7 +340,7 @@ function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},B0::Array{
             # l=1;
              crit=1.0; j=1;loglik0=0.0;  #i=1;
 
-         if(!isempty(Ψ₀)) #for getKC
+         if (!isempty(Ψ₀)) #for getKC
            while (crit >=tol)
              b1, V1, Σ1, loglik1 = fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,symXs,b1,V1,Σ1,λg,m,n,ν₀,Ψ;ν=ν,Ψ₀=Ψ₀)
             #Speed restarting Nesterov's Scheme
@@ -365,10 +365,6 @@ function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},B0::Array{
                         V2 = V2+(abs(eigmin(V2))+ρ)*I
                   end
    
-               #    if (!isposdef(Σ2))
-               #          Σ2 = Σ2 +(abs(eigmin(Σ2))+ρ)*I
-               #    end
-   
                if (norm(Σ1-Σ0)+norm(V1-V0)+norm(b1-b0)<norm(Σ0-Σ00)+norm(V0-V00)+norm(b0-b00)) & (j>=kmin)
                    j=1
                  else
@@ -380,10 +376,12 @@ function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},B0::Array{
                b00=b0;b0=b1;b1=b2; V00=V0;V0=V1;V1=V2;Σ00=Σ0;Σ0=Σ1; Σ1=Σ2;loglik0=loglik1;
    #             i+=1
               end
+        end
            return Result(b1,V1,Σ1,loglik0)
 
 end
 
+#for getKc
 function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},Z::Array{Float64,2},B0::Array{Float64,2},
         Vc::Array{Float64,2},Σ::Array{Float64,2},λg::Array{Float64,1},ν₀,Ψ::Array{Float64,2},ν,Ψ₀::Array{Float64,2};tol::Float64)
 
@@ -404,14 +402,6 @@ function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},Z::Array{F
             #Speed restarting Nesterov's Scheme
             updatNestrvAG!(j,b0,b1,b2,V0,V1,V2,Σ0,Σ1,Σ2)
 
-            #    if (!isposdef(V2))
-            #          V2 = V2+(abs(eigmin(V2))+ρ)*I
-            #    end
-
-            #    if (!isposdef(Σ2))
-            #          Σ2 = Σ2 +(abs(eigmin(Σ2))+ρ)*I
-            #    end
-
             if (norm(Σ1-Σ0)+norm(V1-V0)+norm(b1-b0)<norm(Σ0-Σ00)+norm(V0-V00)+norm(b0-b00)) & (j>=kmin)
                 j=1
             else
@@ -428,22 +418,17 @@ function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},Z::Array{F
 end
 
 
-#Z=I, only for MVLMM
+#Z=I, only for MVLMM H₁
 function ecmNestrvAG(lod0::Float64,kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},B0::Array{Float64,2},
         Vc::Array{Float64,2},Σ::Array{Float64,2},λg::Array{Float64,1},ν₀,Ψ;tol::Float64,ρ::Float64)
                          
-             if(lod0>0.0)
+             if (lod0>0.0)
              result=  NestrvAG(kmin,Y,X,B0,Vc,Σ,λg,ν₀,Ψ;ν=0,Ψ₀=[],tol=tol,ρ=ρ)
                 else #keep running ecmLMM
               B0,Vc,Σ,loglik0 = ecmLMM(Y,X,B0,Vc,Σ,λg,ν₀,Ψ;ν=0,Ψ₀=[],tol=tol)
               result=  NestrvAG(kmin,Y,X,B0,Vc,Σ,λg,ν₀,Ψ;ν=0,Ψ₀=[],tol=tol,ρ=ρ)
              end
              
-            else #MVLMM
-            
-
-        
-            end
       return result
 
 end
@@ -452,19 +437,19 @@ end
 
 
 
-function ecmNestrvAG(lod0::Float64,kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},Z::Array{Float64,2},B0::Array{Float64,2},
-        Vc::Array{Float64,2},Σ::Array{Float64,2},λg::Array{Float64,1},ν₀,Ψ::Array{Float64,2},ν,Ψ₀::Array{Float64,2};tol::Float64)
+# function ecmNestrvAG(lod0::Float64,kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},Z::Array{Float64,2},B0::Array{Float64,2},
+#         Vc::Array{Float64,2},Σ::Array{Float64,2},λg::Array{Float64,1},ν₀,Ψ::Array{Float64,2},ν,Ψ₀::Array{Float64,2};tol::Float64)
 
-             if(lod0>0.0)
-             result=  NestrvAG(kmin,Y,X,Z,B0,Vc,Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol)
-                else #keep running ecmLMM
-              B0,Vc,Σ,loglik0 = ecmLMM(Y,X,Z,B0,Vc,Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol)
-              result=  NestrvAG(kmin,Y,X,Z,B0,Vc,Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol)
-             end
+#              if(lod0>0.0)
+#              result=  NestrvAG(kmin,Y,X,Z,B0,Vc,Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol)
+#                 else #keep running ecmLMM
+#               B0,Vc,Σ,loglik0 = ecmLMM(Y,X,Z,B0,Vc,Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol)
+#               result=  NestrvAG(kmin,Y,X,Z,B0,Vc,Σ,λg,ν₀,Ψ,ν,Ψ₀;tol=tol)
+#              end
              
-      return result
+#       return result
 
-end
+# end
 
 
 

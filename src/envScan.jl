@@ -45,15 +45,15 @@ Implement environment scan conditional on a genetic marker of interest (QTL).  E
 ## Keyword Arguments
 
 - `Xnul` :  A matrix of covariates. Default is intercepts (1's).  Unless plugging in particular covariates, just leave as it is.
-- `itol` :  A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
-- `tol0` :  A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
-- `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
+- `itol` :  A value of tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
+- `tol0` :  A value of tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
+- `tol` : A value of tolerance controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
 - `ρ` : A tunning parameter controlling ``\\tau^2``. Default is `0.001`.
 
 !!! Note
 
-- When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`. It works in most cases. If not,
-    can reduce both `tol0` and `tol` to `1e-4` or further.
+- When some LOD scores return negative values, we recommend reducing tolerences for ECM to `tol0 = 1e-4`. It works in most cases. If not,
+    it is possible to reduce both `tol0` and `tol` to `1e-4` or any smaller value.
 
 
 # Output
