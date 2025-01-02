@@ -139,7 +139,7 @@ end
       permTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,
                  Prior::Matrix{Float64}=cov(Y,dims=2),Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
    
-Implement permutation test to get thresholds at the levels of type 1 error, `α`.  Note that the last `permTest()` 
+Implement permutation test to get thresholds at the levels of type 1 error, `α`.  Note that the second `permTest()` 
 is for the conventional MLMM: 
 ```math
 vec(Y)\\sim MVN((I \\otimes X)vec(B) (or BX), K \\otimes \\Sigma_1 +I \\otimes \\Sigma_2),

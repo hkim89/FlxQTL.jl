@@ -124,7 +124,7 @@ random and error terms, respectively.  `Z` can be replaced with an identity matr
            ``cov(Y,dims=2)`` (empirical) is default.
 - `df_prior`: degrees of freedom, ``\\nu_0`` of Inverse-Wishart prior distributon for the residual error matrix.  `m+1` (non-informative) is default.  
 - `Rprior`: A positive definite scale matrix, ``\\Psi_0``, of Inverse-Wishart prior distribution for the random effect matrix, i.e. ``\\Sigma_1 \\sim W^{-1}_m (\\Psi_0, \\nu)``.  
-           ``I_m`` (for non-informative prior) is default. 
+           ``I_m`` (for non-informative prior) is default.  This is for the second kind of `gene2Scan()` including `getKc()`. 
 - `df_Rprior`: degrees of freedom, ``\\nu`` of Inverse-Wishart prior distributon for \\Sigma_1.  `m+1` (non-informative) is default.       
 - `ρ` : A tunning parameter controlling ``\\tau^2`` by ``max(\\tau^2,\\rho)`` or ``\\Sigma_1`` by adding ``|eigmin(V2))+ρ|*I``. Default is `0.001`.
 - `itol` :  A value of tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
@@ -170,12 +170,22 @@ function gene2Scan(cross::Int64,Tg,Tc::Array{Float64,2},Λg,λc::Array{Float64,1
             X0=mat2array(cross,XX.X)
          end
     if (LOCO)
-        @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,Tg[:,:,1])
-        est0=nulScan(init,kmin,Λg[:,1],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
-
-         for i=1:nChr
+        
+        maridx=findall(XX.chr.==Chr[1]);
+       # null & Chr1 scan
+        @fastmath @inbounds Y2,Xnul_t=transForm(Tg[:,:,1],Y1,Xnul,1)
+        if (cross!=1)
+           @fastmath @inbounds X1 = transForm(Tg[:,:,1],X0[maridx,:,:],cross)
+         else 
+           @fastmath @inbounds X1 = transForm(Tg[:,:,1],XX.X[maridx,:],cross)
+         end
+        
+         est0=nulScan(init,kmin,Λg[:,1],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
+         marker2Scan!(LODs,maridx,q,kmin,cross,est,Λg[:,1],λc,Y2,Xnul_t,X1,Z1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol)
+        
+         for i=2:nChr
                 maridx=findall(XX.chr.==Chr[i]);
-#                 Xnul_t=Xnul*Tg[:,:,i]';
+               @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,Tg[:,:,i])
        
                 if (cross!=1)
        @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,X0[maridx,:,:],cross)
@@ -224,12 +234,24 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Boo
          end
     if (LOCO)
         #null scan
-        @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,@view Tg[:,:,1])
-        est0=nulScan(init,kmin,Λg[:,1],Y,Xnul_t,df_prior,Prior;itol=itol,tol=tol,ρ=ρ)
+       
+        
+        maridx=findall(XX.chr.==Chr[1])
+        #null & Chr1 scan
+        @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,Tg[:,:,1])
+        if (cross!=1)
+            @fastmath @inbounds Y,X=transForm(Tg[:,:,1],Y,X0[maridx,:,:],cross)
+             else
+             @fastmath @inbounds Y,X=transForm(Tg[:,:,1],Y,XX.X[maridx,:],cross)
+        end
 
-            for i=1:nChr
+        est0=nulScan(init,kmin,Λg[:,1],Y,Xnul_t,df_prior,Prior;itol=itol,tol=tol,ρ=ρ)
+        marker2Scan!(LODs,maridx,m,kmin,cross,est,Λg[:,1],Y,Xnul_t,X,df_prior,Prior;ρ=ρ,tol0=tol0,tol1=tol)
+
+
+            for i=2:nChr
                 maridx=findall(XX.chr.==Chr[i]);
-#                 Xnul_t=Xnul*Tg[:,:,i]';
+               @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,@view Tg[:,:,i])
             
                 if (cross!=1)
                    Y,X=transForm(Tg[:,:,i],Y,X0[maridx,:,:],cross)
@@ -288,13 +310,20 @@ function gene2Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,Z::Array{
          end
     if (LOCO)
         # est0=[];
-        # null scan
-        @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul, Tg[:,:,1])
-        est0=nulScan(init,kmin,Λg[:,1],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
+        # null & Chr1 scan
+        maridx=findall(XX.chr.==Chr[1])
+     @fastmath @inbounds Y2,Xnul_t=transForm(Tg[:,:,1],Y1,Xnul,1)
+     if (cross!=1)
+        @fastmath @inbounds X1 = transForm(Tg[:,:,1],X0[maridx,:,:],cross)
+      else 
+        @fastmath @inbounds X1 = transForm(Tg[:,:,1],XX.X[maridx,:],cross)
+      end
+      est0=nulScan(init,kmin,Λg[:,1],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
+      marker2Scan!(LODs,maridx,q,kmin,cross,est,Λg[:,1],λc,Y2,Xnul_t,X1,Z1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol) 
 
-         for i=1:nChr
+         for i=2:nChr
                 maridx=findall(XX.chr.==Chr[i]);
-              
+                @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul, Tg[:,:,i])
                  if (cross!=1) #individual-wise tranformation 
              @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,X0[maridx,:,:],cross)
                    else
