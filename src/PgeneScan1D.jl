@@ -58,7 +58,7 @@ function marker1Scan(m,kmin,cross,Nullpar::Approx,λg,λc,Y1,Xnul_t,X1,ν₀,Ψ;
 
           lod=@distributed (vcat) for j=1:nmar
                 XX=vcat(Xnul_t, @view X1[j,2:end,:])
-                B0,τ2,Σ,loglik0 =ecmLMM(Y1,XX,B0,Nullpar.τ2,Nullpar.Σ,λg,λc,ν₀,Ψ;ρ=ρ,tol=tol0)
+                B0,τ2,Σ,loglik0 =ecmLMM(Y1,XX,B0,Nullpar.τ2,Nullpar.Σ,λg,λc,ν₀,Ψ;tol=tol0)
                  lod0= (loglik0-Nullpar.loglik)/log(10)
                 est1=ecmNestrvAG(lod0,kmin,Y1,XX,B0,τ2,Σ,λg,λc,ν₀,Ψ;ρ=ρ,tol=tol1)
             [(est1.loglik-Nullpar.loglik)/log(10) est1]
@@ -514,7 +514,7 @@ function gene1Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,Z::Array{
                  Y1,X1=transForm(Tg,Y1,XX.X,cross)
                end
 
-                est0=nulScan(init,1,Λg,λc,Y1,Xnul_t,Z1,Σ1,df_prior,Ψ,df_prior_τ2,τ2_Pr;itol=itol,tol=tol)
+                est0=nulScan(init,1,Λg,λc,Y1,Xnul_t,Z1,Σ1,df_prior,Ψ;itol=itol,tol=tol,ρ=ρ)
               LODs,H1par=marker1Scan(q,1,cross,est0,Λg,λc,Y1,Xnul_t,X1,Z1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol)
            # rearrange B into 3-d array
         B = arrngB(H1par,size(Xnul,1),q,p,cross)

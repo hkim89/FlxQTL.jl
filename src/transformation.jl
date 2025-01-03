@@ -372,7 +372,7 @@ end
 
 
 ###########
-#estimate Kc with  all priors
+#for getKc with  all priors -- run by MVLMM
 function nul1Scan(init::Init0,kmin,Y,Xnul,Z,m,ν₀,Ψ,ν,Ψ₀;itol=1e-3,tol=1e-4)
        
       n=size(Y,2); λg=ones(n)
@@ -383,7 +383,7 @@ function nul1Scan(init::Init0,kmin,Y,Xnul,Z,m,ν₀,Ψ,ν,Ψ₀;itol=1e-3,tol=1e
         
        else #Z=I
         B0,Kc_0,Σ1,loglik0 =ecmLMM(Y,Xnul,init.B,init.Vc,init.Σ,λg,ν₀,Ψ;ν,Ψ₀,tol=itol)
-        nulpar=NestrvAG(kmin,Y,Xnul,Z,B0,Kc_0,Σ1,λg,ν₀,Ψ,ν,Ψ₀;tol=tol)
+        nulpar=NestrvAG(kmin,Y,Xnul,B0,Kc_0,Σ1,λg,ν₀,Ψ;ν=ν,Ψ₀=Ψ₀,tol=tol)
      end
     return nulpar
 end

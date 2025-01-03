@@ -2,13 +2,7 @@
 
 ############
 
-### ECM algorithm : Estimate parameters by updating them using eStep and cmStep functions.
-# Synopsis: B_cur,τ2_cur,Σ_cur,loglik0 = ecmLMM(Y,X,Z,B0,τ2_0,Σ,λg,λc) %'tol' can be chosen to set.
-#Input: See eStep, cmStep descriptions
-#Output:
-#B_cur,τ2_cur,Σ_cur:  parameter estimation of B,τ2,Σ, respectively
-#loglik0 : loglikelihood value by estimated parameters
-
+### ECM algorithm 
 function ecmLMM(Y::Array{Float64,2},X::Array{Float64,2},Z::Array{Float64,2},B0::Array{Float64,2},
         τ2_0::Float64,Σ::Array{Float64,2},λg::Array{Float64,1},λc::Array{Float64,1},ν₀,Ψ::Array{Float64,2};tol::Float64=1e-4)
 
@@ -86,7 +80,7 @@ end
 
 
 
-#whole ECM procedures grouped in one function: embedded in Nesterov's scheme
+#ECM in Nesterov
 # fullECM : update all parameters
 
 function fullECM(Vg,Ve,Bnew,dev,Ghat,Θ,Y,X,Z,symXs,b1,τ1::Array{Float64,1},Σ1,λg,λc,m,n,ν₀,Ψ::Array{Float64,2};numChr=0,nuMarker=0,niter=0)
@@ -205,17 +199,8 @@ end
 
 
 
-### ECM embeded in Nesterov's accelerated gradient method with speed restarting scheme
-#Synopsis : result=ecmNestrvAG(kmin,Y,X,Y,Z,B0,τ2_0,Σ,λg,λc) %'tol' can be chosen to set.
-#
-# Input:
-# kmin : an integer. A minimum iteration (default=1) to restart the algorithm. Depending on the data, this value can be freely
-#       set to prevent any loglikelihood value from yielding a domain error until reaching kmin.
-# other inputs : see eStep, cmStep, or K2eig
-# Output: result: a struct of Approx. Approx.B, Approx.τ2, Approx.Σ   : parameter estimation of B,τ2,Σ, respectively
-# Approx.loglik : loglikelihood value by estimated parameters
 
-
+## ECM+Nesterov to check -LOD
 function ecmNestrvAG(lod0::Float64,kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},Z::Array{Float64,2},B0::Array{Float64,2},
          τ2_0::Float64,Σ::Array{Float64,2},λg::Array{Float64,1},λc::Array{Float64,1},ν₀,Ψ::Array{Float64,2};ρ=0.001,tol::Float64,numChr=0,nuMarker=0)
 
@@ -244,7 +229,7 @@ function ecmNestrvAG(lod0::Float64,kmin::Int64,Y::Array{Float64,2},X::Array{Floa
 
 #MVLMM
 #fullECM : update all parameters
-#Z=I 
+#Z=I & getKc w/o Z
 function fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,symXs,B,Vc::Array{Float64,2},Σ,λg,m,n,ν₀,Ψ::Array{Float64,2};ν,Ψ₀)
 
           eStep!(Ghat,Θ,Y,X,B,Vc,Σ,λg,m)
@@ -262,7 +247,7 @@ function fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,symXs,B,Vc::Array{Float64,2},Σ,λg
 
 end
 
-#for getKc
+#for getKc with Z
 function fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,Z,symXs,B::Array{Float64,2},Vc::Array{Float64,2},Σ,λg,m,n,ν₀,Ψ::Array{Float64,2},ν,Ψ₀::Array{Float64,2})
 
           eStep!(Ghat,Θ,Y,X,Z,B,Vc,Σ,λg,m)
@@ -300,6 +285,7 @@ function ecmLMM(Y::Array{Float64,2},X::Array{Float64,2},B0::Array{Float64,2},
 
 end
 
+# for getKc only
 function ecmLMM(Y::Array{Float64,2},X::Array{Float64,2},Z::Array{Float64,2},B0::Array{Float64,2},
         Vc::Array{Float64,2},Σ::Array{Float64,2},λg::Array{Float64,1},ν₀,Ψ::Array{Float64,2},ν,Ψ₀::Array{Float64,2};tol::Float64=1e-4)
 
@@ -323,7 +309,7 @@ function ecmLMM(Y::Array{Float64,2},X::Array{Float64,2},Z::Array{Float64,2},B0::
 
 end
 
-#Z=I
+#Z=I for getKc & MVLMM
 function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},B0::Array{Float64,2},
         Vc::Array{Float64,2},Σ::Array{Float64,2},λg::Array{Float64,1},ν₀,Ψ::Array{Float64,2};ν,Ψ₀,tol::Float64,ρ=0.001)
 
@@ -340,31 +326,17 @@ function NestrvAG(kmin::Int64,Y::Array{Float64,2},X::Array{Float64,2},B0::Array{
             # l=1;
              crit=1.0; j=1;loglik0=0.0;  #i=1;
 
-         if (!isempty(Ψ₀)) #for getKC
            while (crit >=tol)
-             b1, V1, Σ1, loglik1 = fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,symXs,b1,V1,Σ1,λg,m,n,ν₀,Ψ;ν=ν,Ψ₀=Ψ₀)
-            #Speed restarting Nesterov's Scheme
-            updatNestrvAG!(j,b0,b1,b2,V0,V1,V2,Σ0,Σ1,Σ2)
-            if (norm(Σ1-Σ0)+norm(V1-V0)+norm(b1-b0)<norm(Σ0-Σ00)+norm(V0-V00)+norm(b0-b00)) & (j>=kmin)
-                j=1
-            else
-                j=j+1
-            end
-#             crit=norm(Σ1-Σ0)+norm(V1-V0)+norm(b1-b0)
-              crit=abs(loglik1-loglik0)
-            b00=b0;b0=b1;b1=b2; V00=V0;V0=V1;V1=V2;Σ00=Σ0;Σ0=Σ1; Σ1=Σ2;loglik0=loglik1;
-#             i+=1
-           end
-        else #MVLMM
-            while (crit >=tol)
                 b1, V1, Σ1, loglik1 = fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,symXs,b1,V1,Σ1,λg,m,n,ν₀,Ψ;ν=ν,Ψ₀=Ψ₀)
                #Speed restarting Nesterov's Scheme
                updatNestrvAG!(j,b0,b1,b2,V0,V1,V2,Σ0,Σ1,Σ2)
-   
-                  if (!isposdef(V2))
+
+                if (isempty(Ψ₀)) #MVLMM
+                    if (!isposdef(V2))
                         V2 = V2+(abs(eigmin(V2))+ρ)*I
-                  end
-   
+                    end
+                end
+                
                if (norm(Σ1-Σ0)+norm(V1-V0)+norm(b1-b0)<norm(Σ0-Σ00)+norm(V0-V00)+norm(b0-b00)) & (j>=kmin)
                    j=1
                  else
