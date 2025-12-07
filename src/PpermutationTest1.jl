@@ -70,8 +70,7 @@ function getKc(Y::Array{Float64,2},Kg::Array{Float64,2},init::Init0;m=size(Y,1),
      est0= nul1Scan(init,1,λg,Y1,Xnul_t,Z,m,df_prior,Prior;ρ=ρ,itol=itol,tol=tol)
       Tc, λc = K2eig(est0.Vc)
      Y1,Z1,Σ1,Ψ = transByTrait(m,Tc,Y,Z,Prior,est0)
-      τ² =mean(Diagonal(est0.Vc)./m)
-     
+      τ² =1.0
     #   Y1 = trans2iid(Y1,1.0,Σ1,λg,λc) #tranform to iid
 
    return λc, Tbyt(Y1,Z1,Σ1,Ψ),InitKc(est0.Vc,est0.B,est0.Σ,τ²,est0.loglik)
@@ -321,7 +320,11 @@ where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma``
 
 !!! Note
 - When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`, or increase `df_prior`, such that 
-   ``m+1 \\le`` `df_prior` ``< 2m``.  The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.   
+   ``m+1 \\le`` `df_prior` ``< 2m``.  The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.  
+    Adjusting `df_prior` better work for higher dimensional traits; we do not recommend this adjustment for lower dimensional traits, such as 
+    ``m < 15`` depending on the data since this may slow the performance.  
+
+- This LOCO version of permutation test can be desirable for low to moderate dimensional traits or high dimensional traits with high-performance computers.
 
 
 # Output

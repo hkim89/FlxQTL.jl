@@ -103,176 +103,68 @@ function marker1Scan(nmar,m,kmin,cross,Nullpar::Result,λg,Y1,Xnul_t,X1,ν₀,Ψ
 
 end
 
-######### actual two genescan versions including prior
+###### estimating Kc with prior
 
+struct TNull
+Y::Matrix{Float64}
+Xnul::Matrix{Float64}
+Z::Matrix{Float64}
+Σ::Matrix{Float64}
+Ψ::Matrix{Float64}
+end
 
-# function geneScan(cross::Int64,Tg,Tc::Array{Float64,2},Λg,λc::Array{Float64,1},Y::Array{Float64,2},
-#         XX::Markers,Z::Array{Float64,2},LOCO::Bool=false;LogP::Bool=false,
-#         Xnul::Array{Float64,2}=ones(1,size(Y,2)),m=size(Y,1),df_prior=m+1,
-#         Prior::Matrix{Float64}=cov(Y,dims=2)*3,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
+function transByTrait(m,Tc,Y,Z,Prior,init::Result)
 
+#  if (λc!= ones(m))
+        if (Prior!= diagm(ones(m)) && Z!= diagm(ones(m)) )
+            Z1, Σ1, Ψ =transForm(Tc,Z,init.Σ,Prior)
+        elseif (Z != diagm(ones(m)))
+            Z1,Σ1 =  transForm(Tc,Z,init.Σ,true)
+            Ψ =Prior
+        else #Z & prior =I 
+            Σ1 =  transForm(Tc,init.Σ,Z)
+            Z1=Z; Ψ = Prior
+        end
         
-#         q=size(Z,2);  p=Int(size(XX.X,1)/cross); 
+        Y1= transForm(Tc,Y,init.Σ) # transform Y only by row (Tc)
 
-#         ## picking up initial values for parameter estimation under the null hypothesis
-#             init=initial(Xnul,Y,Z)
-#           if (λc!= ones(m))
-#             if (Prior!= diagm(ones(m)))
-#                 Z1, Σ1, Ψ =transForm(Tc,Z,init.Σ,Prior)
-#              else # prior =I 
-#                 Z1,Σ1 =  transForm(Tc,Z,init.Σ,true)
-#                 Ψ =Prior
-#             end
-            
-#             Y1= transForm(Tc,Y,init.Σ) # transform Y only by row (Tc)
+    return Y1,Z1,Σ1,Ψ
+end
+#estimate Kc with prior
+function nul1Scan(init::Init0,kmin,λg,Y,Xnul,Z,m,ν₀,Ψ;ρ=0.001,itol=1e-3,tol=1e-4)
+       
+      # n=size(Y,2); 
 
-#            else
-#             Z1=Z; Σ1 = init.Σ
-#             Y1=Y;Ψ = Prior
-#          end
-#          if (cross!=1)
-#             X0=mat2array(cross,XX.X)
-#          end
-#     if (LOCO)
-#         LODs=zeros(p);
-#         Chr=unique(XX.chr);nChr=length(Chr);est0=[];H1par=[]
+    if (Z!=diagm(ones(m)))   
+        B0,Kc_0,Σ1,_=ecmLMM(Y,Xnul,Z,init.B,init.Vc,init.Σ,λg,ν₀,Ψ;tol=itol)
+        nulpar=NestrvAG(kmin,Y,Xnul,Z,B0,Kc_0,Σ1,λg,ν₀,Ψ;tol=tol,ρ=ρ)
+        
+       else #Z=I
+        nulpar = nulScan(init,kmin,λg,Y,Xnul,ν₀,Ψ;ρ=ρ,itol=itol,tol=tol)
+     end
+    return nulpar #Result
+end
 
-#            for i=1:nChr
-#                 maridx=findall(XX.chr.==Chr[i]);nmar=length(maridx)
-# #                 Xnul_t=Xnul*Tg[:,:,i]';
-#    @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul, Tg[:,:,i])
-#                  if (cross!=1)
-#    @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,X0[:,:,maridx],cross)
-#                    else
-#   @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,XX.X[maridx,:],cross)
-#                  end
-#                 #parameter estimation under the null
-#                   est00=nulScan(init,1,Λg[:,i],λc,Y2,Xnul_t,Z1,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
-#                 lods,H1par1=marker1Scan(nmar,q,1,cross,est00,Λg[:,i],λc,Y2,Xnul_t,X1,Z1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol,nchr=i)
-#                 LODs[maridx]=lods
-#                 H1par=[H1par;H1par1]
-#                 est0=[est0;est00];
-#             end
-#            # rearrange B into 3-d array
-#            B = arrngB(H1par,size(Xnul,1),q,p,cross)
-
-#         else #no LOCO
-# #          Xnul_t=Xnul*Tg';
-#             Xnul_t= BLAS.gemm('N','T',Xnul,Tg)
-#                  if (cross!=1)
-#                    Y1,X1=transForm(Tg,Y1,X0,cross)
-#                    else
-#                    Y1,X1=transForm(Tg,Y1,XX.X,cross)
-#                  end
-
-#                   est0=nulScan(init,1,Λg,λc,Y1,Xnul_t,Z1,Σ1,df_prior,Ψ;itol=itol,tol=tol,ρ=ρ)
-#                 LODs,H1par=marker1Scan(p,q,1,cross,est0,Λg,λc,Y1,Xnul_t,X1,Z1,df_prior,Ψ;tol0=tol0,tol1=tol,ρ=ρ)
-#              # rearrange B into 3-d array
-#           B = arrngB(H1par,size(Xnul,1),q,p,cross)
-#     end
-
-#     # Output choice
+#H0 MVLMM for Kc estimation
+function getKc(Y::Array{Float64,2},Tg::Matrix{Float64},λg::Vector{Float64},init::Init0;m=size(Y,1),Z=diagm(ones(m)), df_prior=m+1,
+     Prior::Matrix{Float64}=cov(Y,dims=2)*3,
+     Xnul::Array{Float64,2}=ones(1,size(Y,2)),itol=1e-2,tol::Float64=1e-3,ρ=0.001)
+     
+     Y1,Xnul_t = transForm(Tg,Y,Xnul,1) #null model transformation
+     
+ 
+     est0= nul1Scan(init,1,λg,Y1,Xnul_t,Z,m,df_prior,Prior;ρ=ρ,itol=itol,tol=tol)
+      Tc, λc = K2eig(est0.Vc)
+     
+      #trait-wise transformation
+      Y2,Z1,Σ1,Ψ = transByTrait(m,Tc,Y1,Z,Prior,est0)
+      τ² = 1.0
     
-#     if (LogP) # transform LOD to -log10(p-value)
-#             if(LOCO)
-#                 df= prod(size(B[:,:,1]))-prod(size(est0[1].B))
-#             else
-#                 df= prod(size(B[:,:,1]))-prod(size(est0.B))
-#             end
-#              logP=lod2logP(LODs,df)
-
-#         return logP,B,est0
-#      else
-#          return LODs,B,est0
-#      end
-# end
-
-# #Z=I
-# function geneScan(cross::Int64,Tg::Union{Array{Float64,3},Array{Float64,2}},Tc::Array{Float64,2},Λg::Union{Array{Float64,2},Array{Float64,1}},λc::Array{Float64,1},Y::Array{Float64,2},
-#         XX::Markers,LOCO::Bool=false;LogP::Bool=false,Xnul::Array{Float64,2}=ones(1,size(Y,2)),m=size(Y,1),df_prior=m+1,
-#         Prior::Matrix{Float64}=cov(Y,dims=2)*3,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
-
-#         #  
-#          p=Int(size(XX.X,1)/cross);
-         
-#          #check the prior
-#          if (!isposdef(Prior))
-#             println("Error! Plug in a postivie definite Prior!")
-#          end
-#         ## picking up initial values for parameter estimation under the null hypothesis
-#             init=initial(Xnul,Y)
-
-#          if(λc!= ones(m))
-#             if (Prior!= diagm(ones(m)))
-#                 Y1,Σ1,Ψ= transForm(Tc,Y,init.Σ,Prior) # transform Y only by row (Tc)
-#             else #prior =I
-#                 Y1,Σ1 =  transForm(Tc,Y,init.Σ,true)
-#                 Ψ =Prior
-#             end
-#            else
-#             Σ1 =init.Σ
-#             Y1=Y;Ψ =Prior
-#          end
-
-#          if (cross!=1)
-#             X0=mat2array(cross,XX.X)
-#          end
-#     if (LOCO)
-#         LODs=zeros(p);
-#         Chr=unique(XX.chr);nChr=length(Chr);est0=[];H1par=[]
-
-#            for i=1:nChr
-#                 maridx=findall(XX.chr.==Chr[i]);nmar=length(maridx)
-# #                 Xnul_t=Xnul*Tg[:,:,i]';
-#    @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,Tg[:,:,i])
-#                  if (cross!=1)
-#       @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,X0[:,:,maridx],cross)
-#                    else
-#       @fastmath @inbounds Y2,X1=transForm(Tg[:,:,i],Y1,XX.X[maridx,:],cross)
-#                  end
-#                 #parameter estimation under the null
-#                 est00=nulScan(init,1,Λg[:,i],λc,Y2,Xnul_t,Σ1,df_prior,Ψ;ρ=ρ,itol=itol,tol=tol)
-#                 lods,H1par1=marker1Scan(nmar,m,1,cross,est00,Λg[:,i],λc,Y2,Xnul_t,X1,df_prior,Ψ;ρ=ρ,tol0=tol0,tol1=tol,nchr=i)
-#                 LODs[maridx]=lods
-#                 H1par=[H1par;H1par1]
-#                 est0=[est0;est00];
-#             end
-#            # rearrange B into 3-d array
-#            B = arrngB(H1par,size(Xnul,1),m,p,cross)
-
-#         else #no LOCO
-# #          Xnul_t=Xnul*Tg';
-#             Xnul_t= BLAS.gemm('N','T',Xnul,Tg)
-#                  if (cross!=1)
-#                    Y1,X1=transForm(Tg,Y1,X0,cross)
-#                    else
-#                    Y1,X1=transForm(Tg,Y1,XX.X,cross)
-#                  end
-
-#                   est0=nulScan(init,1,Λg,λc,Y1,Xnul_t,Σ1,df_prior,Ψ;itol=itol,tol=tol,ρ=ρ)
-#             LODs,H1par=marker1Scan(p,m,1,cross,est0,Λg,λc,Y1,Xnul_t,X1,df_prior,Ψ;tol0=tol0,tol1=tol,ρ=ρ)
-#              # rearrange B into 3-d array
-#           B = arrngB(H1par,size(Xnul,1),m,p,cross)
-#     end
-
-
-#     if (LogP) # transform LOD to -log10(p-value)
-#           if(LOCO)
-#                 df= prod(size(B[:,:,1]))-prod(size(est0[1].B))
-#             else
-#                 df= prod(size(B[:,:,1]))-prod(size(est0.B))
-#             end
-#              logP=lod2logP(LODs,df)
-
-#         return logP,B,est0
-#       else
-#          return LODs,B,est0
-#      end
-# end
-
-
-
-
+    return λc, TNull(Y2,Xnul_t,Z1,Σ1,Ψ),InitKc(est0.Vc,est0.B,est0.Σ,τ²,est0.loglik)
+ 
+ end
+ 
+ 
 
 include("geneScan1.jl")
 
