@@ -141,7 +141,7 @@ Z::Matrix{Float64}
 Σ::Matrix{Float64}
 end
 
-#H0 MVLMM for Kc estimation
+#H0 MVLMM for Kc estimation w/o prior
 function getKc(init::Init0,Y::Array{Float64,2},Tg::Matrix{Float64},λg::Vector{Float64};m=size(Y,1),Z=diagm(ones(m)),
           Xnul::Array{Float64,2}=ones(1,size(Y,2)),itol=1e-2,tol::Float64=1e-3,ρ=0.001)
      

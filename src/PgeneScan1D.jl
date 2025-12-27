@@ -145,7 +145,7 @@ function nul1Scan(init::Init0,kmin,λg,Y,Xnul,Z,m,ν₀,Ψ;ρ=0.001,itol=1e-3,to
     return nulpar #Result
 end
 
-#H0 MVLMM for Kc estimation
+#H0 MVLMM for Kc estimation with prior
 function getKc(Y::Array{Float64,2},Tg::Matrix{Float64},λg::Vector{Float64},init::Init0;m=size(Y,1),Z=diagm(ones(m)), df_prior=m+1,
      Prior::Matrix{Float64}=cov(Y,dims=2)*3,
      Xnul::Array{Float64,2}=ones(1,size(Y,2)),itol=1e-2,tol::Float64=1e-3,ρ=0.001)

@@ -92,7 +92,7 @@ function permutation(nperm::Int64,cross::Int64,p::Int64,q::Int64,Y::Array{Float6
     
     for l= 1:nperm
         ### permuting a phenotype matrix by individuals
-        Y2=permutY!(Y2,Y,1.0,tNul.Σ,λg,λc)
+        permutY!(Y2,Y,1.0,tNul.Σ,λg,λc)
         #initial parameter values for permutations are from genome scanning under the null hypothesis.
         perm_est0=nulScan(init,1,λg,λc,Y2,tNul.Xnul,tNul.Z,tNul.Σ,ν₀,tNul.Ψ;ρ=ρ,itol=tol0,tol=tol)
         LODs,H1par0=marker1Scan(p,q,1,cross,perm_est0,λg,λc,Y2,tNul.Xnul,X,tNul.Z,ν₀,tNul.Ψ;tol0=tol0,tol1=tol,ρ=ρ)
@@ -203,28 +203,14 @@ function Scan0(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers;Xnul::Array{F
 end
 
 
-
+#MVLMM
 """
 
-      permTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],m=size(Y,1),Z=diagm(ones(m)),df_prior=m+1,
-              Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
-      
       mlmmTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],df_prior=m+1,
                Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
    
-Implement permutation test to get thresholds at the levels of type 1 error, `α`.  Note that `mlmmTest()` 
-is based on the conventional MLMM (`Z=I`).
-The FlxQTL model is defined as 
-
-```math
-vec(Y)\\sim MVN((X' \\otimes Z)vec(B) (or ZBX), K \\otimes \\Omega +I \\otimes \\Sigma),
-``` 
-
-where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`` are covariance matrices for random and error terms, respectively.  
-``V_C`` is pre-estimated under the null model (`H0`) of no QTL from the conventional MLMM, which is equivalent to the FlxQTL model for ``\\tau^2 =1``.  
-
-!!! NOTE
-- `permutationTest()` is implemented by `geneScan` with LOCO.  
+Implement permutation test to get thresholds at the levels of type 1 error, `α` by 
+the conventional MLMM (`Z=I`). See also [`permutationTest`](@ref).
 
 # Arguments
 
@@ -264,23 +250,6 @@ where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma``
 
 
 """
-function permTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],m=size(Y,1),Z=diagm(ones(m)),df_prior=m+1,
-        Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
-    #permutation without LOCO
-    p=Int(size(XX.X,1)/cross);  q=size(Z,2)
-    Tg,λg=K2eig(Kg)
-    λc, tNul, NulKc, Y0, X1 = Scan0(cross,Tg,λg,Y,XX,Z;Xnul=Xnul,m=m,df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
-    maxLODs, H1par_perm= permutation(nperm,cross,p,q,Y0,X1,tNul,NulKc,λg,λc,df_prior;tol0=tol0,tol=tol,ρ=ρ)
-    maxLODs=convert(Array{Float64,1},maxLODs)
-    cutoff= quantile(maxLODs,1.0.-pval)
-
-    return maxLODs, H1par_perm, cutoff
-
-end
-
-
-
-#MVLMM
 function mlmmTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,
                  Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
     #permutation without LOCO
@@ -298,5 +267,6 @@ end
 
 
 include("PpermutationTest1.jl")
+include("permutationTest.jl")
 
 

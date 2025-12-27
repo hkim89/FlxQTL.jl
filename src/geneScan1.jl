@@ -163,19 +163,6 @@ function geneScan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::
 end
 
 ##MVLMM
-
-"""
-      geneScan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false;Xnul::Array{Float64,2}=ones(1,size(Y,2)),
-              m=size(Y,1),LogP::Bool=false,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
-      geneScan(Tg,Λg,Y,XX,cross,false;Xnul=ones(1,size(Y,2)),df_prior=m+1,Prior=cov(Y,dims=2)*3,LogP=false,
-             itol=1e-3,tol0=1e-3,tol=1e-4,ρ=0.001)
-
-Implement 1d-genome scan with/without LOCO (Leave One Chromosome Out) by 
-
-
-"""
-
-
 function geneScan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false;Xnul::Array{Float64,2}=ones(1,size(Y,2)),
     m=size(Y,1), df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,LogP::Bool=false,
     itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)

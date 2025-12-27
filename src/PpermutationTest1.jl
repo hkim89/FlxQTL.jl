@@ -1,12 +1,13 @@
 
 
 ###Permutation test : all permutations are implemented by loco
-struct TbyT
-Xnul::Matrix{Float64}
-Z::Matrix{Float64}
-Σ::Matrix{Float64}
-Ψ::Matrix{Float64}
-end
+# struct TbyT
+# Y::Matrix{Float64}
+# Xnul::Matrix{Float64}
+# Z::Matrix{Float64}
+# Σ::Matrix{Float64}
+# Ψ::Matrix{Float64}
+# end
 
 struct Tbyt
 Y::Matrix{Float64}
@@ -24,7 +25,7 @@ function scan0loco(cross::Int64,Tg::Array{Float64,3},Λg::Matrix{Float64},Y::Arr
          # LODs=zeros(p);
         Chr=unique(XX.chr); nChr=length(Chr);NulKc=[];tNuls=[];
         Λc= Array{Array{Float64,1}}(undef,nChr);fill!(Λc,zeros(m))
-        Y0 = Array{Array{Float64,2}}(undef,nChr);fill!(Y0,zeros(m,n))
+        Y0 = similar(Y)
 
         #    tbyt, init= transByTrait(m,Tc,λc,Y,Z,Xnul,Prior)
         if (cross!=1)
@@ -48,37 +49,36 @@ function scan0loco(cross::Int64,Tg::Array{Float64,3},Λg::Matrix{Float64},Y::Arr
          else
            @fastmath @inbounds X1[maridx,:]=transForm(Tg[:,:,i],XX.X[maridx,:],cross)
         end
-          Y0[i]= trans2iid(tt.Y,1.0,tt.Σ,Λg[:,i],Λc[i]) # preparing transformed Y to be iid for permutation
+          Y0[:,:]= trans2iid(tt.Y,1.0,tt.Σ,Λg[:,i],Λc[i]) # preparing transformed Y to be iid for permutation
             
-          tNuls=[tNuls;TbyT(tt.Xnul,tt.Z,tt.Σ,tt.Ψ)];NulKc=[NulKc;init]
+          tNuls=[tNuls;TNull(Y0,tt.Xnul,tt.Z,tt.Σ,tt.Ψ)];NulKc=[NulKc;init]
 
      end
         
-         return Λc, tNuls, NulKc, Y0, X1
+         return Λc, tNuls, NulKc, X1
  
 end
 
 
 #estimating Kc w/o loco for permutation
-function getKc(Y::Array{Float64,2},Kg::Array{Float64,2},init::Init0;m=size(Y,1),Z=diagm(ones(m)), df_prior=m+1,
+function getKc(Y::Array{Float64,2},K::Array{Float64,2},init::Init0;m=size(Y,1),Z=diagm(ones(m)), df_prior=m+1,
      Prior::Matrix{Float64}=cov(Y,dims=2)*3,
      Xnul::Array{Float64,2}=ones(1,size(Y,2)),itol=1e-2,tol::Float64=1e-3,ρ=0.001)
 
-      Tg,λg=K2eig(Kg)
-      Y1,Xnul_t = transForm(Tg,Y,Xnul,1) #null model transformation
+      T,λ=K2eig(K)
+      Y1,Xnul_t = transForm(T,Y,Xnul,1) #null model transformation
 
-     est0= nul1Scan(init,1,λg,Y1,Xnul_t,Z,m,df_prior,Prior;ρ=ρ,itol=itol,tol=tol)
+     est0= nul1Scan(init,1,λ,Y1,Xnul_t,Z,m,df_prior,Prior;ρ=ρ,itol=itol,tol=tol)
       Tc, λc = K2eig(est0.Vc)
      Y1,Z1,Σ1,Ψ = transByTrait(m,Tc,Y,Z,Prior,est0)
       τ² =1.0
-    #   Y1 = trans2iid(Y1,1.0,Σ1,λg,λc) #tranform to iid
-
+   
    return λc, Tbyt(Y1,Z1,Σ1,Ψ),InitKc(est0.Vc,est0.B,est0.Σ,τ²,est0.loglik)
 
 end
 
-# Kc (no loco) (m<16 or 20)
-function scan0loco(cross::Int64,Kg::Matrix{Float64},Tg::Array{Float64,3},Λg::Matrix{Float64},Y::Array{Float64,2},XX::Markers,
+# Kc (no loco) 
+function scan0loco(cross::Int64,K::Matrix{Float64},Tg::Array{Float64,3},Λg::Matrix{Float64},Y::Array{Float64,2},XX::Markers,
         Z::Array{Float64,2},n::Int64,m::Int64;Xnul::Array{Float64,2}=ones(1,n),df_prior=m+1,
                 Prior::Matrix{Float64}=cov(Y,dims=2)*3,itol=1e-3,tol::Float64=1e-4,ρ=0.001)
 
@@ -100,7 +100,7 @@ function scan0loco(cross::Int64,Kg::Matrix{Float64},Tg::Array{Float64,3},Λg::Ma
          init0=initial(Xnul,Y,false)
       end
        
-       λc, tNul, initKc = getKc(Y,Kg,init0;m=m,Z=Z,df_prior=df_prior,Prior=Prior,Xnul=Xnul,itol=itol,tol=tol,ρ=ρ)
+       λc, tNul, initKc = getKc(Y,K,init0;m=m,Z=Z,df_prior=df_prior,Prior=Prior,Xnul=Xnul,itol=itol,tol=tol,ρ=ρ)
        
        for i = eachindex(Chr)
         maridx=findall(XX.chr.==Chr[i]);
@@ -165,7 +165,7 @@ end
 
 
 ## finding distribution of max lod's for a multivariate model by permutation 
-function locoPermutation(cross::Int64,p::Int64,q::Int64,m::Int64,n::Int64,Y0::Array{Array{Float64,2},1},
+function locoPermutation(cross::Int64,p::Int64,q::Int64,m::Int64,n::Int64,
                X::Union{Array{Float64,2},Array{Float64,3}},chr::Array{Any,1},NulKc,TT,
              Λg::Array{Float64,2},λc::Array{Array{Float64,1},1},ν₀;tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
 
@@ -179,7 +179,7 @@ function locoPermutation(cross::Int64,p::Int64,q::Int64,m::Int64,n::Int64,Y0::Ar
        for j=eachindex(Chr)
         maridx=findall(chr.==Chr[j]);nmar=length(maridx)
         #transformation back to correlated Y after permutation
-         Y1 = trans2iid(Y0[j][:,rng],1.0,TT[j].Σ,Λg[:,j],λc[j],true) 
+         Y1 = trans2iid(TT[j].Y[:,rng],1.0,TT[j].Σ,Λg[:,j],λc[j],true) 
 
           if (cross!=1)
              X1=X[:,:,maridx]
@@ -197,7 +197,7 @@ function locoPermutation(cross::Int64,p::Int64,q::Int64,m::Int64,n::Int64,Y0::Ar
     return maximum(lod), H1par
 end
 
-# Kc(no loco) (m<16 or 20)
+# Kc(no loco)
 function locoPermutation(cross::Int64,p::Int64,q::Int64,m::Int64,n::Int64,Y0::Array{Array{Float64,2},1},
     Xnul_t::Array{Array{Float64,2},1},X::Union{Array{Float64,2},Array{Float64,3}},chr::Array{Any,1},
     NulKc,TT,Λg::Array{Float64,2},λc::Vector{Float64},ν₀;tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
@@ -272,11 +272,17 @@ end
 
 """
 
-      permutationTest(nperm,cross,Kg,Y,XX;pval=[0.05 0.01],Z=diagm(ones(m)),Xnul=ones(1,size(Y,2)),
+     permutationTest(Kg::Union{Matrix{Float64},Array{Float64,3}},Y,XX::Markers,nperm::Int64,cross::Int64,LOCO::Bool=false;
+                    pval=[0.05 0.01],m=size(Y,1),Z=diagm(ones(m)),Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)  
+     permutationTest(nperm,cross,Kg,Y,XX,false;pval=[0.05 0.01],Z=diagm(ones(m)),Xnul=ones(1,size(Y,2)),
                      df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,
-                     LOCO_all::Bool=false,itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001,δ =0.01)
+                     LOCO_all::Bool=false,itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
+     permTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers;pval=[0.05 0.01],m=size(Y,1),
+             Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
+             itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001,δ=0.01)
+                     
       
-Implement permutation test from the distribution of maximum LOD scores by LOCO to get thresholds at the levels of type 1 error, `α`.  
+Implement permutation test from the distribution of maximum LOD scores to get thresholds at the levels of type 1 error, `α`.  
 The FlxQTL model is defined as 
 
 ```math
@@ -284,20 +290,22 @@ vec(Y)\\sim MVN((X' \\otimes Z)vec(B) (or ZBX), K \\otimes \\Omega +I \\otimes \
 ``` 
 
 where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`` are covariance matrices for random and error terms, respectively.  
-``V_C`` is pre-estimated under the null model (H0) of no QTL from the conventiona MLMM, which is equivalent to the FlxQTL model for ``\\tau^2 =1``.  
+``V_C`` is pre-estimated under the null model (H0) of no QTL from the conventional MLMM, which is equivalent to the FlxQTL model for ``\\tau^2 =1``.  
 
 !!! NOTE
-- `permTest()` and `mlmmTest()` are implemented by `geneScan` without LOCO.  
+- `permTest()` is implemented by permutation test with LOCO, but ``\\Omega`` is pretimated without LOCO.
+- [`mlmmTest`](@ref) is implemented by the conventional MLMM without LOCO.  
 
 # Arguments
 
 - `nperm` : An integer (Int64) indicating the number of permutation to be implemented.
 - `cross` : An integer (Int64) indicating the number of combination of alleles or genotypes. Ex. `2` for RIF, `4` for four-way cross, `8` for HS mouse (allele probabilities), etc.
           This value is related to degrees of freedom for the effect size of a genetic marker when doing genome scan.
-- `Kg` : A 3d-array of n x n genetic kinship matrices. Should be symmetric positive definite.
+- `Kg` : A 3d-array of n x n genetic kinship matrices (`LOCO = true`) or a matrix of genetic kinship for the default option of `LOCO = false`. Should be symmetric positive definite.
 - `Y` : A m x n matrix of response variables, i.e. m traits (or environments) by n individuals (or lines). For univariate phenotypes, use square brackets in arguement.
         i.e. `Y[1,:]`  (a vector) -> `Y[[1],:]`  (a matrix) .
 - `XX` : A type of [`Markers`](@ref).
+- `LOCO` : Boolean. Default is `false` (no LOCO). Runs genome scan using LOCO (Leave One Chromosome Out) if `true`.
 
 ## Keyword Arguments 
 
@@ -315,14 +323,14 @@ where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma``
 - `tol0` : A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
 - `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
 - `ρ` : A tunning parameter controlling ``\\tau^2``. Default is `0.001`.  
-- `δ` : A tuning parameter to correct a non-positive definite kinship without LOCO to pre-estimate a null variance component for low- to medium-dimensional
+- `δ` : A tuning parameter in `permTest()` to correct a non-positive definite kinship without LOCO to pre-estimate a null variance component for low- to medium-dimensional
         traits (``m \\le 10 \\sim 15``) only.  This `no-LOCO` kinship is computed inside the function for efficient computation.
 
 !!! Note
 - When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`, or increase `df_prior`, such that 
    ``m+1 \\le`` `df_prior` ``< 2m``.  The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.  
     Adjusting `df_prior` better work for higher dimensional traits; we do not recommend this adjustment for lower dimensional traits, such as 
-    ``m < 15`` depending on the data since this may slow the performance.  
+    ``m < 15`` depending on the data since this may slow the performance.  For lower dimensional trait data, one can use the function of no penalization option.
 
 - This LOCO version of permutation test can be desirable for low to moderate dimensional traits or high dimensional traits with high-performance computers.
 
@@ -335,27 +343,52 @@ where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma``
 
 
 """
-function permutationTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers;pval=[0.05 0.01],m=size(Y,1),
-             Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),LOCO_all::Bool=false,
-             itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001,δ=0.01)
-    #permutation without LOCO
+function permutationTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;pval=[0.05 0.01],m=size(Y,1),
+             Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
+             itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
+    
     p=Int(size(XX.X,1)/cross); n=size(Y,2); q=size(Z,2)
-    maxLODs = zeros(nperm);H1par=[]
-    Tg,Λg=K2eig(Kg,true)
- if (LOCO_all) #m >16 or 18
-   println("Start estimating null parameters by the LOCO scheme for permutations.")
-    λc, tNuls, NulKc, Y0, X1 = scan0loco(cross,Tg,Λg,Y,XX,Z,n,m;Xnul=Xnul,df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
-   println("Start scanning genetic markers by the LOCO scheme with $(m)-trait permuted data") 
+   
+    
+ if (!LOCO) 
+    #permutation without LOCO
+       Tg,λg=K2eig(Kg)
+       λc, tNul, NulKc, Y0, X1 = Scan0(cross,Tg,λg,Y,XX,Z;Xnul=Xnul,m=m,df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
+       maxLODs, H1par= permutation(nperm,cross,p,q,Y0,X1,tNul,NulKc,λg,λc,df_prior;tol0=tol0,tol=tol,ρ=ρ)
+       maxLODs=convert(Array{Float64,1},maxLODs)
+   
+   else # loco
+
+      maxLODs = zeros(nperm);H1par=[]
+      Tg,Λg=K2eig(Kg,true)
+      # println("Start estimating null parameters by the LOCO scheme for permutations.")
+      λc, tNuls, NulKc, X1 = scan0loco(cross,Tg,Λg,Y,XX,Z,n,m;Xnul=Xnul,df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
+   # println("Start scanning genetic markers by the LOCO scheme with $(m)-trait permuted data") 
     for l= 1:nperm
-    maxlod, H1par_perm=locoPermutation(cross,p,q,m,n,Y0,X1,XX.chr,NulKc,tNuls,Λg,λc,df_prior;tol0=tol0,tol=tol,ρ=ρ)
-    maxLODs[l]=maxlod; H1par=[H1par;H1par_perm]
+    maxLODs[l], H1par_perm=locoPermutation(cross,p,q,m,n,X1,XX.chr,NulKc,tNuls,Λg,λc,df_prior;tol0=tol0,tol=tol,ρ=ρ)
+    H1par=[H1par;H1par_perm]
              if (mod(l,100)==0)
               println("Scan for $(l)th permutation is done.")
              end
     end
 
-   else # m <= 16 or 20
-    println("Estimate a no-LOCO kinship for null variance component preestimation only for $(m) traits.")
+ end
+   
+    cutoff= quantile(maxLODs,1.0.-pval)
+
+    return maxLODs, H1par, cutoff
+
+end
+
+
+### no-loco Kc + loco permutation test
+function permTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers;pval=[0.05 0.01],m=size(Y,1),
+             Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
+             itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001,δ=0.01)
+
+              maxLODs = zeros(nperm);H1par=[]
+
+println("Estimate a kinship without LOCO for pre-estimating null variance component for $(m) traits.")
      if (cross!=1)
         K = kinshipLin(XX.X,cross)
      else
@@ -366,51 +399,27 @@ function permutationTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array
         K= K+δ*I
      println("Positive definiteness of the kinship is corrected to be ", isposdef(K),".")
      end
+     Tg,Λg=K2eig(Kg,true)
      println("Start estimating null parameters without LOCO for permutations.")
      λc, tNul, initKc, Y0, X1, Xnul_t = scan0loco(cross,K,Tg,Λg,Y,XX,Z,n,m;Xnul=Xnul,df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
-    println("Start scanning genetic markers by the LOCO scheme with $(m)-trait permuted data") 
-     for l = 1:nperm
-        maxlod, H1par_perm=locoPermutation(cross,p,q,m,n,Y0,Xnul_t,X1,XX.chr,initKc,tNul,Λg,λc,df_prior;tol0=tol0,tol=tol,ρ=ρ)
-        maxLODs[l]=maxlod; H1par=[H1par;H1par_perm]
+    println("Start scanning genetic markers by the LOCO scheme with permuted $(m)-trait data") 
+    
+    
+    for l = 1:nperm
+       maxLODs[l], H1par_perm=locoPermutation(cross,p,q,m,n,Y0,Xnul_t,X1,XX.chr,initKc,tNul,Λg,λc,df_prior;tol0=tol0,tol=tol,ρ=ρ)
+       H1par=[H1par;H1par_perm]
              if (mod(l,100)==0)
               println("Scan for $(l)th permutation is done.")
              end
 
      end
 
-end
-    maxLODs=convert(Array{Float64,1},maxLODs)
     cutoff= quantile(maxLODs,1.0.-pval)
-
-    return maxLODs, H1par, cutoff
+   
+    return maxLODs, H1par, cutoff 
 
 end
 
-
-
-# #MVLMM
-# function permutationTest(nperm::Int64,cross::Int64,Kg,Y,XX::Markers;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,
-#                  Prior::Matrix{Float64}=cov(Y,dims=2)*3,n=size(Y,2),Xnul=ones(1,n),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
-#     #permutation without LOCO
-#       p=Int(size(XX.X,1)/cross); 
-#       maxLODs = zeros(nperm);H1par=[]
-#      Tg,Λg=K2eig(Kg,true)
-     
-#       est0,Xnul_t,Y2,X1= scan0loco(cross,Tg,Λg,Y,XX;Xnul=Xnul,m=m,df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
-    
-#     for l= 1:nperm
-#     maxLODs[l], H1par_perm=locoPermutation(cross,p,m,n,Y2,X1,XX.chr,est0,Λg,Xnul_t,df_prior,Prior;tol0=tol0,tol=tol,ρ=ρ)
-#     H1par=[H1par;H1par_perm]
-#              if (mod(l,100)==0)
-#               println("Scan for $(l)th permutation is done.")
-#              end
-#     end
-#     maxLODs=convert(Array{Float64,1},maxLODs)
-#     cutoff= quantile(maxLODs,1.0.-pval)
-     
-#     return maxLODs, H1par, cutoff
-
-# end
 
 
 
