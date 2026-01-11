@@ -9,7 +9,7 @@ Flexible QTL analysis tools for structured multiple traits fitting a Multivariat
 module FlxQTL
 
 # # Write your package code here.
- __precompile__(true)
+ __precompile__(false)
 
 
 
@@ -31,9 +31,9 @@ using .GRM:kinshipMan,kinship4way,kinshipGK,kinshipLin,kinshipCtr,kinshipStd,shr
 export kinshipMan,kinship4way,kinshipGK,kinshipLin,kinshipCtr,kinshipStd
 export shrinkg,shrinkgLoco,kinshipLoco
 
-using .flxMLMM: geneScan,gene2Scan,permTest,mlmmTest,K2eig,permutationTest #,envScan, gene1Scan,getKc, K2Eig
+using .flxMLMM: gene1Scan,gene2Scan,permTest,mlmmTest,K2eig,permutationTest #,envScan, gene1Scan,getKc, K2Eig
 #selectQTL
-export geneScan,gene2Scan,permTest,mlmmTest,K2eig,permutationTest #,envScan, gene1Scan ,getKc,K2Eig
+export gene1Scan,gene2Scan,permTest,mlmmTest,K2eig,permutationTest #,envScan, gene1Scan ,getKc,K2Eig
 
 using .Util:setSeed, Markers, newMarkers, mat2vec,mat2array,array2mat, getGenoidx,getFinoidx,lod2logP,ordrMarkers,sortBycM,Y_huber
 export setSeed, Markers, newMarkers, mat2vec,mat2array,array2mat, getGenoidx,getFinoidx,lod2logP,ordrMarkers,sortBycM,Y_huber

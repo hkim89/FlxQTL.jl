@@ -270,80 +270,8 @@ end
 
 
 
-"""
 
-     permutationTest(Kg::Union{Matrix{Float64},Array{Float64,3}},Y,XX::Markers,nperm::Int64,cross::Int64,LOCO::Bool=false;
-                    pval=[0.05 0.01],m=size(Y,1),Z=diagm(ones(m)),Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)  
-     permutationTest(nperm,cross,Kg,Y,XX,false;pval=[0.05 0.01],Z=diagm(ones(m)),Xnul=ones(1,size(Y,2)),
-                     df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,
-                     LOCO_all::Bool=false,itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
-     permTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers;pval=[0.05 0.01],m=size(Y,1),
-             Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
-             itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001,δ=0.01)
-                     
-      
-Implement permutation test from the distribution of maximum LOD scores to get thresholds at the levels of type 1 error, `α`.  
-The FlxQTL model is defined as 
-
-```math
-vec(Y)\\sim MVN((X' \\otimes Z)vec(B) (or ZBX), K \\otimes \\Omega +I \\otimes \\Sigma),
-``` 
-
-where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`` are covariance matrices for random and error terms, respectively.  
-``V_C`` is pre-estimated under the null model (H0) of no QTL from the conventional MLMM, which is equivalent to the FlxQTL model for ``\\tau^2 =1``.  
-
-!!! NOTE
-- `permTest()` is implemented by permutation test with LOCO, but ``\\Omega`` is pretimated without LOCO.
-- [`mlmmTest`](@ref) is implemented by the conventional MLMM without LOCO.  
-
-# Arguments
-
-- `nperm` : An integer (Int64) indicating the number of permutation to be implemented.
-- `cross` : An integer (Int64) indicating the number of combination of alleles or genotypes. Ex. `2` for RIF, `4` for four-way cross, `8` for HS mouse (allele probabilities), etc.
-          This value is related to degrees of freedom for the effect size of a genetic marker when doing genome scan.
-- `Kg` : A 3d-array of n x n genetic kinship matrices (`LOCO = true`) or a matrix of genetic kinship for the default option of `LOCO = false`. Should be symmetric positive definite.
-- `Y` : A m x n matrix of response variables, i.e. m traits (or environments) by n individuals (or lines). For univariate phenotypes, use square brackets in arguement.
-        i.e. `Y[1,:]`  (a vector) -> `Y[[1],:]`  (a matrix) .
-- `XX` : A type of [`Markers`](@ref).
-- `LOCO` : Boolean. Default is `false` (no LOCO). Runs genome scan using LOCO (Leave One Chromosome Out) if `true`.
-
-## Keyword Arguments 
-
-- `pval` : A vector of p-values to get their quantiles. Default is `[0.05  0.01]` (without comma).
-- `Xnul` : A matrix of covariates. Default is intercepts (1's).  Unless plugging in particular covariates, just leave as it is.
-- `Z` :  An optional m x q matrix of low-dimensional phenotypic covariates, i.e. contrasts, basis functions (wavelet, polynomials, B-splines, etc.).
-         If the data does not assume any particular trait relation, just use `Z = diagm(ones(m)) or Matrix(1.0I,m,m)` (default).  
-- `Prior`: A positive definite scale matrix, ``\\Psi``, of prior Inverse-Wishart distributon, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
-            An amplified empirical covariance matrix is default.
-- `df_prior`: Degrees of freedom, ``\\nu_0`` for Inverse-Wishart distributon.  `m+1` (weakly informative) is default.
-- `LOCO_all` : Boolean. Default is `false`, which implements `geneScan(LOCO=true)` with permuted data but a null variance component (`Vc`) preestimated only once
-               with a kinship ([`kinshipLin`](@ref) for genotype (or allele) probabilities, or [`kinshipStd`](@ref) for genotypes) by `LOCO=false` implicitly.  
-               It is recommended setting `true` for higher-dimensional traits for faster convergence and decent accuracy, i.e. approximately ``m > 15`` depending on the data.
-- `itol` : A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
-- `tol0` : A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
-- `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
-- `ρ` : A tunning parameter controlling ``\\tau^2``. Default is `0.001`.  
-- `δ` : A tuning parameter in `permTest()` to correct a non-positive definite kinship without LOCO to pre-estimate a null variance component for low- to medium-dimensional
-        traits (``m \\le 10 \\sim 15``) only.  This `no-LOCO` kinship is computed inside the function for efficient computation.
-
-!!! Note
-- When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`, or increase `df_prior`, such that 
-   ``m+1 \\le`` `df_prior` ``< 2m``.  The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.  
-    Adjusting `df_prior` better work for higher dimensional traits; we do not recommend this adjustment for lower dimensional traits, such as 
-    ``m < 15`` depending on the data since this may slow the performance.  For lower dimensional trait data, one can use the function of no penalization option.
-
-- This LOCO version of permutation test can be desirable for low to moderate dimensional traits or high dimensional traits with high-performance computers.
-
-
-# Output
-
-- `maxLODs` : A nperm x 1 vector of maximal LOD scores by permutation. 
-- `H1par_perm` : A vector of structs, `EcmNestrv.Approx(B,τ2,Σ,loglik)` for each Chromosome per permutation, i.e. `# of Chromosomes` x `nperm`.
-- `cutoff` : A vector of thresholds corresponding to `pval`.
-
-
-"""
-function permutationTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;pval=[0.05 0.01],m=size(Y,1),
+function permutationTest(nperm::Int64,cross::Int64,Kg,Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;pval=[0.05 0.01],m=size(Y,1),
              Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
              itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
     

@@ -20,7 +20,7 @@ function marker1Scan(nmar,q,kmin,cross,Nullpar::Approx,λg,λc,Y1,Xnul_t,X1,Z1;�
             B0=hcat(Nullpar.B,zeros(Float64,q,cross-1))
 
           lod=@distributed (vcat) for j=1:nmar
-                XX= vcat(Xnul_t, @view X1[j,2:end,:])
+                XX= vcat(Xnul_t, @view X1[2:end,:,j])
                 B0,τ2,Σ,loglik0 =ecmLMM(Y1,XX,Z1,B0,Nullpar.τ2,Nullpar.Σ,λg,λc;tol=tol0)
                   lod0= (loglik0-Nullpar.loglik)/log(10)
                 est1=ecmNestrvAG(lod0,kmin,Y1,XX,Z1,B0,τ2,Σ,λg,λc;ρ=ρ,tol=tol1)
@@ -57,7 +57,7 @@ function marker1Scan(nmar,m,kmin,cross,Nullpar::Approx,λg,λc,Y1,Xnul_t,X1;ρ=0
         B0=hcat(Nullpar.B,zeros(Float64,m,cross-1))
 
           lod=@distributed (vcat) for j=1:nmar
-                XX=vcat(Xnul_t, @view X1[j,2:end,:])
+                XX=vcat(Xnul_t, @view X1[2:end,:,j])
                 B0,τ2,Σ,loglik0 =ecmLMM(Y1,XX,B0,Nullpar.τ2,Nullpar.Σ,λg,λc;tol=tol0)
                  lod0= (loglik0-Nullpar.loglik)/log(10)
                 est1=ecmNestrvAG(lod0,kmin,Y1,XX,B0,τ2,Σ,λg,λc;ρ=ρ,tol=tol1)
@@ -90,7 +90,7 @@ function marker1Scan(nmar,m,kmin,cross,Nullpar::Result,λg,Y1,Xnul_t,X1;ρ=0.001
         B0=hcat(Nullpar.B,zeros(m,cross-1))
 
         lod=@distributed (vcat) for j=1:nmar
-                XX= vcat(Xnul_t,@view X1[j,2:end,:])
+                XX= vcat(Xnul_t,@view X1[2:end,:,j])
             B0,Vc,Σ,loglik0 = ecmLMM(Y1,XX,B0,Nullpar.Vc,Nullpar.Σ,λg;tol=tol0)
                  lod0= (loglik0-Nullpar.loglik)/log(10)
                 est1=ecmNestrvAG(lod0,kmin,Y1,XX,B0,Vc,Σ,λg;tol=tol1,ρ=ρ)
@@ -161,8 +161,8 @@ function getKc(init::Init0,Y::Array{Float64,2},Tg::Matrix{Float64},λg::Vector{F
  
 
 
-function gene1Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::Union{Matrix{Float64},Vector{Float64}},
-          Y::Array{Float64,2},XX::Markers,Z::Array{Float64,2},LOCO::Bool=false;H0_up::Bool=false,
+function gene1Scan(Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::Union{Matrix{Float64},Vector{Float64}},
+          Y::Array{Float64,2},XX::Markers,Z::Array{Float64,2},cross::Int64,LOCO::Bool=false;H0_up::Bool=false,
           Xnul::Array{Float64,2}=ones(1,size(Y,2)),LogP::Bool=false,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
       
         q=size(Z,2);  p=Int(size(XX.X,1)/cross);m=size(Y,1)
@@ -187,7 +187,7 @@ function gene1Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg:
         λc, T0,init = getKc(init0,Y,Tg[:,:,i],Λg[:,i];Xnul=Xnul,m=m,Z=Z,itol=itol,tol=tol,ρ=ρ)
    @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul, Tg[:,:,i])
                  if (cross!=1)
-   @fastmath @inbounds X1=transForm(Tg[:,:,i],X0[maridx,:,:],cross)
+   @fastmath @inbounds X1=transForm(Tg[:,:,i],X0[:,:,maridx],cross)
                    else
   @fastmath @inbounds X1=transForm(Tg[:,:,i],XX.X[maridx,:],cross)
                  end
@@ -238,7 +238,7 @@ function gene1Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg:
 end
 
 #Z=I
-function gene1Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::Union{Matrix{Float64},Vector{Float64}},
+function geneScan1(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::Union{Matrix{Float64},Vector{Float64}},
           Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;H0_up::Bool=false,
           Xnul::Array{Float64,2}=ones(1,size(Y,2)),LogP::Bool=false,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
       
@@ -261,7 +261,7 @@ function gene1Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg:
         λc, T0,init = getKc(init0,Y,Tg[:,:,i],Λg[:,i];Xnul=Xnul,m=m,itol=itol,tol=tol,ρ=ρ)
    @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul, Tg[:,:,i])
                  if (cross!=1)
-   @fastmath @inbounds X1=transForm(Tg[:,:,i],X0[maridx,:,:],cross)
+   @fastmath @inbounds X1=transForm(Tg[:,:,i],X0[:,:,maridx],cross)
                    else
   @fastmath @inbounds X1=transForm(Tg[:,:,i],XX.X[maridx,:],cross)
                  end
@@ -312,16 +312,11 @@ function gene1Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg:
 end
 
 ##MVLMM
-function gene1Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false;Xnul::Array{Float64,2}=ones(1,size(Y,2)),
+function geneScan1(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false;Xnul::Array{Float64,2}=ones(1,size(Y,2)),
                 LogP::Bool=false,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
 
    
     p=Int(size(XX.X,1)/cross);m=size(Y,1)
-
-    #check the prior
-    if (!isposdef(Prior))
-        println("Error! Plug in a postivie definite Prior!")
-     end
 
      #initialization
        init=initial(Xnul,Y,false)

@@ -237,12 +237,12 @@ end
 """
 
      gene1Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::Union{Matrix{Float64},Vector{Float64}},
-          Y::Array{Float64,2},XX::Markers,LOCO::Bool=false,penalize::Bool=false;Z=diagm(ones(m)),H0_up::Bool=false,
-          Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,
-          LogP::Bool=false,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
-     gene1Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false,penalize::Bool=false;Xnul::Array{Float64,2}=ones(1,size(Y,2)),
-            df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,LogP::Bool=false,
-           itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
+               Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;penalize::Bool=false,Z=diagm(ones(m)),H0_up::Bool=false,
+               Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,
+               LogP::Bool=false,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
+     gene1Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false;penalize::Bool=false,Xnul::Array{Float64,2}=ones(1,size(Y,2)),
+                df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,LogP::Bool=false,
+                itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
 
 
 Implement 1d-genome scan with/without LOCO (Leave One Chromosome Out) fitted by FlxQTL models with/without `Z` and with the option of penalization that 
@@ -251,10 +251,10 @@ The second type `gene1Scan()` is fitted by the conventional MLMM that estimate a
 The FlxQTL model is defined as 
 
 ```math
-vec(Y)\\sim MVN((X' \\otimes Z)vec(B) (or ZBX), K \\otimes \\Omega +I \\otimes \\Sigma),
+vec(Y)\\sim MVN((X' \\otimes Z)vec(B) (or ZBX), Kg \\otimes \\Omega +I \\otimes \\Sigma),
 ``` 
 
-where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`` are covariance matrices for random and error terms, respectively.  
+where `Kg` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`` are covariance matrices for random and error terms, respectively.  
 ``V_C`` is pre-estimated under the null model (`H0`) of no QTL from the conventional MLMM, which is equivalent to the FlxQTL model for ``\\tau^2 =1``.  
 
 # Arguments
@@ -269,11 +269,12 @@ where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma``
 - `Z` :  An optional m x q matrix of low-dimensional phenotypic covariates, i.e. contrasts, basis functions (wavelet, polynomials, B-splines, etc.).
       If no assumption among traits, insert an identity matrix, `Matrix(1.0I,m,m)`, or use the second `geneScan()`.  
 - `LOCO` : Boolean. Default is `false` (no LOCO). Runs genome scan using LOCO (Leave One Chromosome Out) if `true`.
-- `penalize` : Boolean. Default is `false` (no prior used for penalization).  For higher dimensional traits, i.e. large `m=size(Y,1)`, penalization is recommended, i.e. `penalize=true` for numerical 
-           stability.
+
 
 ## Keyword Arguments
 
+- `penalize` : Boolean. Default is `false` (no penalization).  For higher dimensional traits, i.e. large `m=size(Y,1)`, penalization is recommended, i.e. set `penalize=true` for numerical 
+           stability with adjustment of `df_prior` or/and `Prior` if necessary.
 - `Xnul` :  A matrix of covariates. Default is intercepts (1's): `Xnul= ones(1,size(Y,2))`.  Adding covariates (C) is `Xnul= vcat(ones(1,n),C)` where `size(C)=(c,n)`.
 - `Prior`: A positive definite scale matrix, ``\\Psi``, of prior Inverse-Wishart distributon, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
            An amplified empirical covariance matrix is default.
@@ -289,8 +290,8 @@ where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma``
 - If some LOD scores return negative values under penalization or keep returning negative values under no penalization, then reduce tolerences for ECM to e.g., `tol0 = 1e-4` (no penalization), 
   or switch to penalization (`penalize=true`) to adjust `df_prior`, such that 
    ``m+1 \\le`` `df_prior` ``< 2m``.  The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.  
-   Adjusting `df_prior` work for higher dimensional traits; we do not recommend this adjustment for lower dimensional traits, such as 
-    ``m < 15`` depending on the data since this may slow the performance.  
+   Adjusting `df_prior` is more effective than doing `Prior`; we do not recommend this adjustment for lower dimensional traits (``m < 15``), 
+   depending on the data since this may slow the performance.  
 
 
 # Output
@@ -300,17 +301,16 @@ where `K` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma``
         in 4-way cross analysis, B[:,2,100], B[:,3:5,100] are effects for sex, the rest genotypes of the 100th QTL, respectively.
 - `H0est` : A type of `EcmNestrv.Result` including parameter estimates under H0: no QTL for both functions.  Returns `EcmNestrv.Approx` if `H0_up=true`.
 """
-function gene1Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::Union{Matrix{Float64},Vector{Float64}},
-          Y::Array{Float64,2},XX::Markers,LOCO::Bool=false,penalize::Bool=false;m=size(Y,1),Z=diagm(ones(m)),H0_up::Bool=false,
+function gene1Scan(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;penalize::Bool=false,m=size(Y,1),Z=diagm(ones(m)),H0_up::Bool=false,
           Xnul::Array{Float64,2}=ones(1,size(Y,2)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,
           LogP::Bool=false,itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
 
     if (!penalize) #no penalization
        
       if (Z!=diagm(ones(m)))
-      result, B, H0est = gene1Scan(cross,Tg,Λg,Y,XX,Z,LOCO;H0_up=H0_up,Xnul=Xnul,LogP=LogP,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
+      result, B, H0est = gene1Scan(Tg,Λg,Y,XX,Z,cross,LOCO;H0_up=H0_up,Xnul=Xnul,LogP=LogP,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
          else  #Z=I
-      result, B, H0est = gene1Scan(cross,Tg,Λg,Y,XX,LOCO;H0_up=H0_up,Xnul=Xnul,LogP=LogP,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
+      result, B, H0est = geneScan1(cross,Tg,Λg,Y,XX,LOCO;H0_up=H0_up,Xnul=Xnul,LogP=LogP,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
        end
      
       else #prior included
@@ -329,7 +329,7 @@ end
 
 
 ## MVLMM (Z=I)
-function gene1Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false,penalize::Bool=false;Xnul::Array{Float64,2}=ones(1,size(Y,2)),
+function gene1Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false;penalize::Bool=false,Xnul::Array{Float64,2}=ones(1,size(Y,2)),
     m=size(Y,1), df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,LogP::Bool=false,
     itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
 
@@ -337,7 +337,7 @@ function gene1Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Boo
 
       result, B,H0est = geneScan(Tg,Λg,Y,XX,cross,LOCO;Xnul=Xnul,m=m, df_prior=df_prior,Prior=Prior,LogP=LogP,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
     else 
-      result, B, H0est =gene1Scan(Tg,Λg,Y,XX,cross,LOCO;Xnul=Xnul,LogP=LogP,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
+      result, B, H0est =geneScan1(Tg,Λg,Y,XX,cross,LOCO;Xnul=Xnul,LogP=LogP,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
 
     end
 

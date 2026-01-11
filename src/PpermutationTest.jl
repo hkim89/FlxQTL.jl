@@ -1,14 +1,6 @@
 
 
 ###Permutation test : all permutations are implemented without loco
-
-#trans2iid : Transforming columnwise (individuals) correlated Y1 to iid Y_t, or transforming back to the correlated Y1
-### Use a multivariate phenotype matrix to permute data and run an Ecm+Nesterov algorithm per phenotype to obtain
-### the sum of lod's for univariate phenotypes.
-##Input:
-# Y : a matrix of phenotypes already transformed by orthogonal matrices corresponding eigenvalues λg,λc
-# τ2_nul,Σ_nul : estimates from the multivariate model under the null.
-## trnsback : default = false, i.e. perform an iid transformation, and if true, transforming back from the iid Y
 function trans2iid(Y::Array{Float64,2},τ2_nul::Float64,Σ_nul::Array{Float64,2},λg::Array{Float64,1},λc::Array{Float64,1}
         ,trnsback::Bool=false)
 
@@ -175,7 +167,7 @@ function Scan0(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers;Xnul::Array{F
     m=size(Y,1), df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,itol=1e-3,tol::Float64=1e-4,ρ=0.001)
 
    
-    p=Int(size(XX.X,1)/cross);
+    # p=Int(size(XX.X,1)/cross);
 
     #check the prior
     if (!isposdef(Prior))
@@ -198,72 +190,9 @@ function Scan0(cross::Int64,Tg,Λg,Y::Array{Float64,2},XX::Markers;Xnul::Array{F
 
                   est0=nulScan(init,1,Λg,Y,Xnul_t,df_prior,Prior;itol=itol,tol=tol,ρ=ρ)
       
-        return p,est0,Xnul_t,Y,X
+        return est0,Xnul_t,Y,X
 
 end
-
-
-#MVLMM
-"""
-
-      mlmmTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],df_prior=m+1,
-               Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
-   
-Implement permutation test to get thresholds at the levels of type 1 error, `α` by 
-the conventional MLMM (`Z=I`). See also [`permutationTest`](@ref).
-
-# Arguments
-
-- `nperm` : An integer indicating the number of permutation to be implemented.
-- `cross` : An integer indicating the number of alleles or genotypes. Ex. `2` for RIF, `4` for four-way cross, `8` for HS mouse (allele probabilities), etc.
-          This value is related to degree of freedom when doing genome scan.
-- `Kg` : A n x n genetic kinship matrix. Should be symmetric positive definite.
-- `Y` : A m x n matrix of response variables, i.e. m traits (or environments) by n individuals (or lines). For univariate phenotypes, use square brackets in arguement.
-        i.e. `Y[1,:]`  (a vector) -> `Y[[1],:]`  (a matrix) .
-- `XX` : A type of [`Markers`](@ref).
-
-## Keyword Arguments 
-
-- `pval` : A vector of p-values to get their quantiles. Default is `[0.05  0.01]` (without comma).
-- `Xnul` : A matrix of covariates. Default is intercepts (1's).  Unless plugging in particular covariates, just leave as it is.
-- `Z` :  An optional m x q matrix of low-dimensional phenotypic covariates, i.e. contrasts, basis functions (fourier, wavelet, polynomials, B-splines, etc.).
-         If the data does not assume any particular trait relation, just use `Z = I` (default).  
-- `Prior`: A positive definite scale matrix, ``\\Psi``, of prior Inverse-Wishart distributon, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
-           An amplified empirical covariance matrix is default.
-- `df_prior`: Degrees of freedom, ``\\nu_0`` for Inverse-Wishart distributon.  `m+1` (weakly informative) is default.
-- `itol` : A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
-- `tol0` : A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
-- `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
-- `ρ` : A tunning parameter controlling ``\\tau^2``. Default is `0.001`.  
-
-
-!!! Note
-- When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`, or increase `df_prior`, such that 
-   ``m+1 \\le`` `df_prior` ``< 2m``.  The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.   
-
-# Output
-
-- `maxLODs` : A nperm x 1 vector of maximal LOD scores by permutation. 
-- `H1par_perm` : A type of struct, `EcmNestrv.Approx(B,τ2,Σ,loglik)` including parameter estimates  or `EcmNestrv.Result(B,Vc,Σ,loglik)` 
-                for a conventional MLMM under H0: no QTL by permutation. 
-- `cutoff` : A vector of thresholds corresponding to `pval`.
-
-
-"""
-function mlmmTest(nperm::Int64,cross,Kg,Y,XX::Markers;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,
-                 Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
-    #permutation without LOCO
-     Tg,λg=K2eig(Kg)
-     p,est0,Xnul_t,Y1,X1 = Scan0(cross,Tg,λg,Y,XX;Xnul=Xnul,m=m, df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
-     maxLODs, H1par_perm= permutation(nperm,cross,p,Y1,X1,est0,λg,Xnul_t,df_prior,Prior;tol0=tol0,tol=tol,ρ=ρ)
-     maxLODs=convert(Array{Float64,1},maxLODs)
-     cutoff= quantile(maxLODs,1.0.-pval)
-     
-    return maxLODs, H1par_perm, cutoff
-
-end
-
-
 
 
 include("PpermutationTest1.jl")

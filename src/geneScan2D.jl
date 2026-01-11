@@ -7,7 +7,7 @@ function marker2Scan!(LODs,mindex::Array{Int64,1},q,kmin,cross,Nullpar::Approx,�
 
               for j=1:M-1
                lod=@distributed (vcat) for l=j+1:M
-                      XX=@views vcat(Xnul_t,X1[j,2:end,:],X1[l,2:end,:])
+                      XX=@views vcat(Xnul_t,X1[2:end,:,j],X1[2:end,:,l])
                       B0,τ2,Σ,loglik0 =ecmLMM(Y1,XX,Z1,B0,Nullpar.τ2,Nullpar.Σ,λg,λc;tol=tol0)
                        lod0=(loglik0-Nullpar.loglik)/log(10)
                       est1=ecmNestrvAG(lod0,kmin,Y1,XX,Z1,B0,τ2,Σ,λg,λc;ρ=ρ,tol=tol1)
@@ -43,7 +43,7 @@ function marker2Scan!(LODs,mindex::Array{Int64,1},m,kmin,cross,Nullpar::Result,�
 
                for j=1:M-1
                lod=@distributed (vcat) for l=j+1:M
-                           XX=@views vcat(Xnul_t,X1[j,2:end,:],X1[l,2:end,:])
+                           XX=@views vcat(Xnul_t,X1[2:end,:,j],X1[2:end,:,l])
                            B0,Vc,Σ,loglik0 = ecmLMM(Y1,XX,B0,Nullpar.Vc,Nullpar.Σ,λg;tol=tol0)
                             lod0=(loglik0-Nullpar.loglik)/log(10)
                            est1=ecmNestrvAG(lod0,kmin,Y1,XX,B0,Vc,Σ,λg;tol=tol1,ρ=ρ)
@@ -74,8 +74,8 @@ end
 
 
 
-function gene2Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::Union{Matrix{Float64},Vector{Float64}},
-          Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;m=size(Y,1),Z=diagm(ones(m)),
+function gene2Scan(Tg::Union{Array{Float64,3},Matrix{Float64}},Λg::Union{Matrix{Float64},Vector{Float64}},
+          Y::Array{Float64,2},XX::Markers,LOCO::Bool,cross::Int64;m=size(Y,1),Z=diagm(ones(m)),
           Xnul::Array{Float64,2}=ones(1,size(Y,2)),itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)   
 
     p=Int(size(XX.X,1)/cross);q=size(Z,2);kmin=1;
@@ -99,7 +99,7 @@ function gene2Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg:
        λc, T0,init = getKc(init0,Y,Tg[:,:,i],Λg[:,i];Xnul=Xnul,m=m,Z=Z,itol=itol,tol=tol,ρ=ρ)
               @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,@view Tg[:,:,i])
                 if (cross!=1)
-                   X1=transForm(Tg[:,:,i],X0[maridx,:,:],cross)
+                   X1=transForm(Tg[:,:,i],X0[:,:,maridx],cross)
                    else
                    X1=transForm(Tg[:,:,i],XX.X[maridx,:],cross)
                  end
@@ -130,13 +130,13 @@ function gene2Scan(cross::Int64,Tg::Union{Array{Float64,3},Matrix{Float64}},Λg:
 end
 
 ##MVLMM
-function gene2Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Bool=false;Xnul::Array{Float64,2}=ones(1,size(Y,2)),
+function geneScan2(Tg,Λg,Y::Array{Float64,2},XX::Markers,LOCO::Bool,cross::Int64;Xnul::Array{Float64,2}=ones(1,size(Y,2)),
     itol=1e-3,tol0=1e-3,tol::Float64=1e-4,ρ=0.001)
 
     p=Int(size(XX.X,1)/cross);kmin=1;m=size(Y,1)
     Chr=unique(XX.chr);  LODs=zeros(p,p);est0=[];
       #initialization
-       init=initial(Xnul,Y0,false)
+       init=initial(Xnul,Y,false)
        if (cross!=1)
             X0=mat2array(cross,XX.X)
          end
@@ -146,7 +146,7 @@ function gene2Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Boo
 #                 Xnul_t=Xnul*Tg[:,:,i]';
              @fastmath @inbounds Xnul_t=BLAS.gemm('N','T',Xnul,@view Tg[:,:,i])
                 if (cross!=1)
-                   Y1,X=transForm(Tg[:,:,i],Y,X0[maridx,:,:],cross)
+                   Y1,X=transForm(Tg[:,:,i],Y,X0[:,:,maridx],cross)
                    else
                    Y1,X=transForm(Tg[:,:,i],Y,XX.X[maridx,:],cross)
                  end
@@ -167,7 +167,7 @@ function gene2Scan(Tg,Λg,Y::Array{Float64,2},XX::Markers,cross::Int64,LOCO::Boo
 
 
              est0=nulScan(init,kmin,Λg,Y1,Xnul_t;itol=itol,tol=tol,ρ=ρ)
-        for i=1:nChr
+        for i=eachindex(Chr)
             maridx=findall(XX.chr.==Chr[i])
             marker2Scan!(LODs,maridx,m,kmin,cross,est0,Λg,Y1,Xnul_t,X;tol0=tol0,tol1=tol,ρ=ρ)
         end
