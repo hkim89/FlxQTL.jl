@@ -19,7 +19,7 @@ import Statistics: mean, var, median
 
     setSeed(seed::Integer))
 
-Assigns different numbers of seeds to workers (or processes) in a deterministic and reproducibile way.
+Assigns different seed numbers to generated worker(s) in a deterministic and reproducibile way.
 
 # Arguments
 
@@ -32,16 +32,21 @@ julia> using Distributed, Random
 julia> addprocs(10)
 julia> @everywhere using FlxQTL
 julia> setSeed(123)
-julia> @everywhere @show myid() rand(WORKER_RNG[])  # check if different seeds are assigned
 ```
 
 """
 function setSeed(seed::Integer)
-    @sync @everywhere begin
-        using Random
-        const WORKER_RNG = Ref{AbstractRNG}()
-        WORKER_RNG[] = Xoshiro(seed + myid())
+   
+    if (nprocs()>1)
+        for j in procs()
+       @spawnat j  @show rand(Random.Xoshiro(seed + myid()))
+         end
+      
+    else
+        
+        return @show rand(Random.Xoshiro(seed + myid()))
     end
+
 end
 
 # for older Julia version: deprecated 

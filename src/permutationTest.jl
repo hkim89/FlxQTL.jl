@@ -223,7 +223,7 @@ end
                      Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
                      itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
 
-     permTest(nperm,cross,Kg,Y,XX;pval=[0.05 0.01],Z=diagm(ones(m)),df_prior=m+1,Prior=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
+     permTest(nperm,cross,Kg::Array{Float64,3},Y,XX;pval=[0.05 0.01],Z=diagm(ones(m)),df_prior=m+1,Prior=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
               itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001,δ=0.01)
                      
       

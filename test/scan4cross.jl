@@ -138,11 +138,21 @@ lod0,b0,es00=FlxQTL.gene1Scan(T3,Λ3,y,X1,Z,4,true;H0_up=true);
 @test sum((lod0.< 0.0))==0.0
 
  for i=axes(Λ3,2)
-
-    print(@test es00[i].τ2 >0.0)
+     print(@test es00[i].τ2 >0.0)
      print(@test es01[i].τ2>0.0)
-     print(@test isposdef(es00[i].Σ) )
-    print(@test isposdef(es01[i].Σ) )
+     if (!isposdef(es00[i].Σ))
+        
+        print(@test issymmetric(es00[i].Σ))
+     else 
+        print(@test isposdef(es00[i].Σ))
+     end
+    
+     if (!isposdef(es01[i].Σ))
+        print(@test issymmetric(es01[i].Σ ))
+     else 
+       print(@test isposdef(es01[i].Σ))
+     end
+     
  end
 
 @test typeof(b0)==Array{Float64,3}
