@@ -1,7 +1,7 @@
 name = "FlxQTL"
 uuid = "ede81e08-c6d8-4fe3-94c2-f928d9d678ed"
-authors = ["Hyeonju Kim <hyeonjukm01@gmail.com>"]
 version = "4.0.0"
+authors = ["Hyeonju Kim <hyeonjukm01@gmail.com>"]
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
@@ -15,6 +15,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
+DelimitedFiles = "1"
 Distributions = "^0.25"
 LossFunctions = "1"
 StaticArrays = "1.9"
