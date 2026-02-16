@@ -94,7 +94,7 @@ K = shrinkg(kinshipMan,10,XX.X) # a matrix
 FlxQTL has added a new functionality for higher dimensional traits, operated by penalized log-likelihood function using `Prior` with `df_prior` for an error term, ``\Sigma``, distributed by Inverse-Wishart distribution to remedy numerial stability.  Users can choose a penalization option in the keyword argument, `penalize =true` when scan or permutation fails convergence in the default setting (no penalization).  The default positive definite scale matrix is then a large scaled matrix (`Prior = cov(Y,dims=2)*3`).  We recommend controlling degrees of freedom (`df_prior`), i.e. ``m+1 (default) \le  df\_prior < 2m ``, or updating the null parameter estimates (`H0_up = true`) for numerical stability when analyzing higher dimenional trait data if any singularity error occurrs.   
 
 !!! Note 
-- Setting `df_prior = Int64(ceil(1.9m))` works most cases. Any tolerance (`itol`, `tol0`, `tol`) of base algorithms may be adjusted, but this is not needed in most cases.
+- The last resort of `df_prior = Int64(ceil(1.9m))` could be applied unless any of adjustments would work. Any tolerance (`itol`, `tol0`, `tol`) of base algorithms may be adjusted, but this is not needed in most cases.
 
 
 Once all input matrices are ready, we need to proceed the eigen-decomposition to a relatedness matrix: the sigular value decomposition is implemented.

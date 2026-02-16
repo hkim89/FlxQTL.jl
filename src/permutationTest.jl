@@ -344,7 +344,7 @@ the conventional MLMM (`Z=I`) with an option of penalization. See also [`permuta
 
 !!! Note
 - When some LOD scores return negative values, reduce tolerence for ECM (`tol0`) to run longer, or increase `df_prior`, where
-   ``m+1 \\le`` `df_prior` ``< 2m``.  The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.   
+   ``m+1 \\le`` `df_prior` ``< 2m`` to singularity errors.  The last resort could be `df_prior = Int64(ceil(1.9m))` unless any of them would works.   
 
 # Output
 

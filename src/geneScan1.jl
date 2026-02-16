@@ -279,7 +279,7 @@ where `Kg` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`
 - `Prior`: A positive definite scale matrix, ``\\Psi``, of prior Inverse-Wishart distributon, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
            An amplified empirical covariance matrix is default.
 - `df_prior`: Degrees of freedom, ``\\nu_0`` for Inverse-Wishart distributon.  `m+1` (weakly informative) is default. 
-- `H0_up` : Default returns null estimates, `est0` from the conventional MLMM.  It is recommended setting `H0_up=true` for ``m \\ge 11`` to avoid negative LODs. 
+- `H0_up` : Default returns null estimates, `est0` from the conventional MLMM.  It is recommended setting `H0_up=true` for higher dimensional traits, e.g. ``m \\ge 18 ?`` depending on the data, to avoid negative LODs. 
 - `itol` :  A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
 - `tol0` :  A tolerance controlling ECM under H1: existence of QTL. Default is `1e-3`.
 - `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
@@ -288,9 +288,9 @@ where `Kg` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`
 
 !!! Note
 - If some LOD scores return negative values under penalization or keep returning negative values under no penalization, then reduce tolerences for ECM to e.g., `tol0 = 1e-4` (no penalization), 
-  or switch to penalization (`penalize=true`) to adjust `df_prior`, such that 
-   ``m+1 \\le`` `df_prior` ``< 2m``.  The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.  
-   Adjusting `df_prior` is more effective than doing `Prior`; we do not recommend this adjustment for lower dimensional traits (``m < 15``), 
+  setting `H0_up=true`, or (and) switch to penalization (`penalize=true`) to adjust `df_prior`, such that 
+   ``m+1 \\le`` `df_prior` ``< 2m`` to avoid singularity errors.  The last resort could be `df_prior = Int64(ceil(1.9m))` when any of them would not work.
+   Adjusting `df_prior` is more effective than doing `Prior`; we do not recommend this adjustment for lower dimensional traits, e.g.``m < 20``, 
    depending on the data since this may slow the performance.  
 
 

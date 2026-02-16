@@ -71,7 +71,7 @@ function getKc(Y::Array{Float64,2},K::Array{Float64,2},init::Init0;m=size(Y,1),Z
      est0= nul1Scan(init,1,λ,Y1,Xnul_t,Z,m,df_prior,Prior;ρ=ρ,itol=itol,tol=tol)
       Tc, λc = K2eig(est0.Vc)
      Y1,Z1,Σ1,Ψ = transByTrait(m,Tc,Y,Z,Prior,est0)
-      τ² =1.0
+      τ² =1.5
    
    return λc, Tbyt(Y1,Z1,Σ1,Ψ),InitKc(est0.Vc,est0.B,est0.Σ,τ²,est0.loglik)
 
