@@ -153,7 +153,7 @@ function getKc(init::Init0,Y::Array{Float64,2},Tg::Matrix{Float64},λg::Vector{F
      
       #trait-wise transformation
       Y2,Z1,Σ1 = transByTrait(m,Tc,Y1,Z,est0)
-      τ² = 1.5
+      τ² = 1.0
     
     return λc, TNul(Y2,Xnul_t,Z1,Σ1),InitKc(est0.Vc,est0.B,est0.Σ,τ²,est0.loglik)
  

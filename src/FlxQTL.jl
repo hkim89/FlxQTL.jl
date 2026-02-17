@@ -9,7 +9,7 @@ Flexible QTL analysis tools for structured multiple traits fitting a Multivariat
 module FlxQTL
 
 # # Write your package code here.
- __precompile__(false)
+ __precompile__(true)
 
 
 
