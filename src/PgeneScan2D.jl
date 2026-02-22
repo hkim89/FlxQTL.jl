@@ -220,11 +220,10 @@ where `Kg` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`
       If no assumption among traits, insert an identity matrix, `Matrix(1.0I,m,m)`, or use the second `geneScan()`.  
 - `LOCO` : Boolean. Default is `false` (no LOCO). Runs genome scan using LOCO (Leave One Chromosome Out) if `true`.
 
-
 ## Keyword Arguments
 
-- `penalize` : Boolean. Default is `false` (no prior used for penalization).  For higher dimensional traits, i.e. large `m=size(Y,1)`, penalization is recommended, i.e. set `penalize=true` for numerical 
-           stability with adjustment of `df_prior` or/and `Prior` if necessary.
+- `penalize` : Boolean. Default is `false` (no prior used for penalization).  For higher dimensional traits, i.e. `large m=size(Y,1)`, penalization is recommended; set `penalize=true` 
+            with adjustment of `df_prior` or/and `Prior` if necessary.
 - `Xnul` :  A matrix of covariates. Default is intercepts (1's): `Xnul= ones(1,size(Y,2))`.  Adding covariates (C) is `Xnul= vcat(ones(1,n),C)` where `size(C)=(c,n)`.
 - `Prior`: A positive definite scale matrix, ``\\Psi``, of prior Inverse-Wishart distributon, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
            An amplified empirical covariance matrix is default.
@@ -235,10 +234,10 @@ where `Kg` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`
 - `ρ` : A tunning parameter controlling ``\\tau^2``. Default is `0.001`.
 
 !!! Note
-- If some LOD scores return negative values under penalization or keep returning negative values under no penalization, then reduce tolerences for ECM to e.g., `tol0 = 1e-4` (no penalization), 
-  or switch to penalization (`penalize=true`) and to adjust `df_prior`, such that 
+- If some LOD scores return negative values under penalization or no penalization, you may reduce tolerences for ECM to e.g., `tol0 = 1e-4` (no penalization), 
+  or switch to penalization (`penalize=true`), follwed by adjusting `df_prior`, such that 
    ``m+1 \\le`` `df_prior` ``< 2m`` to avoid singluarity errors.  The last resort could be `df_prior = Int64(ceil(1.9m))` unless any of them would work.  
-   Adjusting `df_prior` is more effective than doing `Prior`; we do not recommend this adjustment for lower dimensional traits (``m < 15``), 
+   Adjusting `df_prior` is more effective than doing `Prior`; we do not recommend this adjustment for lower dimensional traits (``m < 15 \\sim 20``), 
     depending on the data since this may slow the performance.  
 
 # Output

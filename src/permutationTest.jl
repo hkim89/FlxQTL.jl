@@ -273,9 +273,9 @@ where `Kg` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`
         This `no-LOCO` kinship is computed inside the function for efficient computation.
 
 !!! Note
-- When some LOD scores return negative values, reduce tolerences for ECM to `tol0 = 1e-4`, or increase `df_prior`, where ``m+1 \\le`` `df_prior` ``< 2m``.
-   The easiest setting is `df_prior = Int64(ceil(1.9m))` for numerical stability.  
-    Adjusting `df_prior` works better than doing `'Prior`; we do not recommend this adjustment for lower dimensional traits (``m < 15``), 
+- When some LOD scores return negative values, you may reduce tolerences for ECM to `tol0 = 1e-4`, or increase `df_prior`, where ``m+1 \\le`` `df_prior` ``< 2m``.
+   The last resort could be `df_prior = Int64(ceil(1.9m))` to avoid sigularity errors unless any of them works.  
+    Adjusting `df_prior` works better than doing `'Prior`; we do not recommend this adjustment for lower dimensional traits (``m < 15 \\sim 20``), 
      depending on the data since this may slow the performance.  For lower dimensional trait data, one can use the function of no penalization option.
 
 - This LOCO version of permutation test is desirable to be implemented by high-performance computers.
@@ -326,8 +326,8 @@ the conventional MLMM (`Z=I`) with an option of penalization. See also [`permuta
 - `Y` : A m x n matrix of response variables, i.e. m traits (or environments) by n individuals (or lines). For univariate phenotypes, use square brackets in arguement.
         i.e. `Y[1,:]`  (a vector) -> `Y[[1],:]`  (a matrix) .
 - `XX` : A type of [`Markers`](@ref).
-- `penalize` : Boolean. Default is `false` (no penalization).  For higher dimensional traits, i.e. large `m=size(Y,1)`, penalization is recommended, i.e. set `penalize=true` for numerical 
-           stability with adjustment of `df_prior` or/and `Prior` if necessary.
+- `penalize` : Boolean. Default is `false` (no penalization).  For higher dimensional traits, i.e. `large m=size(Y,1)`, penalization is recommended; set `penalize=true` 
+           with adjustment of `df_prior` or/and `Prior` if necessary.
 
 ## Keyword Arguments 
 
@@ -343,8 +343,8 @@ the conventional MLMM (`Z=I`) with an option of penalization. See also [`permuta
 
 
 !!! Note
-- When some LOD scores return negative values, reduce tolerence for ECM (`tol0`) to run longer, or increase `df_prior`, where
-   ``m+1 \\le`` `df_prior` ``< 2m`` to singularity errors.  The last resort could be `df_prior = Int64(ceil(1.9m))` unless any of them would works.   
+- When some LOD scores return negative values, you may reduce tolerence for ECM (`tol0`) to run longer, or increase `df_prior`, where
+   ``m+1 \\le`` `df_prior` ``< 2m`` to avoid singularity errors.  The last resort could be `df_prior = Int64(ceil(1.9m))` unless any of them would works.   
 
 # Output
 
