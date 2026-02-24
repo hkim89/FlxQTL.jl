@@ -392,7 +392,7 @@ function kinshipLoco(kin,g::Markers,cross::Int64=1,ρ=0.01)
         @views for l=1:nChr
                      if(!isposdef(K[l]))
                         K_loco[:,:,l]=K[l]+ρ*I
-                        println("Kinship dropping chromosome $(Chr[l]) is corrected to be positive definite")
+                        println("Kinship dropping chromosome $(Chr[l]) is corrected to be positive definite:",isposdef(K_loco[:,:,l]))
 
                        else
                         K_loco[:,:,l]=K[l]
@@ -407,7 +407,7 @@ function kinshipLoco(kin,g::Markers,cross::Int64=1,ρ=0.01)
             @views for l=1:nChr
                     if(!isposdef(K[l]))
                         K_loco[:,:,l]=K[l]+ρ*I
-                        println("Kinship dropping chromosome $(Chr[l]) is corrected to be positive definite:isposdef(K_loco[:,:,l])")
+                        println("Kinship dropping chromosome $(Chr[l]) is corrected to be positive definite:",isposdef(K_loco[:,:,l]))
                       else
                         K_loco[:,:,l]=K[l]
                         println("Positive definiteness dropping chromosome $(Chr[l]) is ", isposdef(K_loco[:,:,l]),".")

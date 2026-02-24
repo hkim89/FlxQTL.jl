@@ -28,10 +28,10 @@ Z1=hcat(ones(m),vcat(-ones(3),ones(3)));
 
 
 
-#no loco
-LOD2,B2,est2=FlxQTL.geneScan(1,T,λ,y,XX,Z1;H0_up=true);
+#no loco & no penalization
+LOD2,B2,est2=FlxQTL.gene1Scan(1,T,λ,y,XX;H0_up=true,Z=Z1);
 @test sum((LOD2.< 0.0))==0
-LOD,B,est=FlxQTL.geneScan(1,T,λ,y,XX;H0_up=true);
+LOD,B,est=FlxQTL.gene1Scan(1,T,λ,y,XX;H0_up=true); #Z=I
 @test sum((LOD.< 0.0))==0
 
 @test typeof(B2)==Array{Float64,3}
@@ -43,7 +43,29 @@ LOD,B,est=FlxQTL.geneScan(1,T,λ,y,XX;H0_up=true);
 
 
 #MVLMM
-LOD3,B3,est3=FlxQTL.geneScan(T,λ,y,XX,1)
+LOD3,B3,est3=FlxQTL.gene1Scan(T,λ,y,XX,1)
+@test sum((LOD3.< 0.0))==0
+@test typeof(B3)== Array{Float64,3}
+@test isposdef(est3.Vc)
+@test isposdef(est3.Σ)
+@test est3.loglik <=0.0
+
+# penalization
+LOD2,B2,est2=FlxQTL.gene1Scan(1,T,λ,y,XX;penalize=true,H0_up=true,Z=Z1);
+@test sum((LOD2.< 0.0))==0
+LOD,B,est=FlxQTL.gene1Scan(1,T,λ,y,XX;penalize=true,H0_up=true); #Z=I
+@test sum((LOD.< 0.0))==0
+
+@test typeof(B2)==Array{Float64,3}
+@test typeof(B)==Array{Float64,3}
+@test est.τ2 >0.0 
+@test est2.τ2 >0.0 
+@test isposdef(est.Σ)
+@test isposdef(est2.Σ)
+
+
+#MVLMM
+LOD3,B3,est3=FlxQTL.gene1Scan(T,λ,y,XX,1;penalize=true)
 @test sum((LOD3.< 0.0))==0
 @test typeof(B3)== Array{Float64,3}
 @test isposdef(est3.Vc)
@@ -63,10 +85,10 @@ LOD3,B3,est3=FlxQTL.geneScan(T,λ,y,XX,1)
 # @test isposdef(este[1].Σ)
 # @test este[1].loglik<=0.0
 
-#loco
-LOD1,B1,est01=FlxQTL.geneScan(1,Tg,Λg,y,XX,true;H0_up=true);
+#loco & no penalization
+LOD1,B1,est01=FlxQTL.gene1Scan(1,Tg,Λg,y,XX,true;H0_up=true);
 @test sum((LOD1.< 0.0))==0.0
-LOD0,B0,est00=FlxQTL.flxMLMM.geneScan(1,Tg,Λg,y,XX,Z1,true;H0_up=true);
+LOD0,B0,est00=FlxQTL.flxMLMM.gene1Scan(1,Tg,Λg,y,XX,true;H0_up=true,Z=Z1);
 @test sum((LOD0.< 0.0))==0.0
 
 @test typeof(B0)==Array{Float64,3}
@@ -78,7 +100,7 @@ for j=1:2
        println(@test isposdef(est01[j].Σ))
 end
 #MVLMM
-LOD4,B4,est4=FlxQTL.geneScan(Tg,Λg,y,XX,1,true)
+LOD4,B4,est4=FlxQTL.gene1Scan(Tg,Λg,y,XX,1,true)
 @test sum(LOD4.<0.0)==0
 @test typeof(B4)==Array{Float64,3}
 for j=1:2
@@ -87,6 +109,29 @@ for j=1:2
        println(@test est4[j].loglik<=0.0)
 end
 
+#penalization
+LOD1,B1,est01=FlxQTL.gene1Scan(1,Tg,Λg,y,XX,true;penalize=true,H0_up=true);
+@test sum((LOD1.< 0.0))==0.0
+LOD0,B0,est00=FlxQTL.flxMLMM.gene1Scan(1,Tg,Λg,y,XX,true;penalize=true,H0_up=true,Z=Z1);
+@test sum((LOD0.< 0.0))==0.0
+
+@test typeof(B0)==Array{Float64,3}
+@test typeof(B1)==Array{Float64,3}
+for j=1:2
+       println(@test est00[j].τ2 >0.0)
+       println(@test est01[j].τ2 >0.0 )
+       println(@test isposdef(est00[j].Σ))
+       println(@test isposdef(est01[j].Σ))
+end
+#MVLMM
+LOD4,B4,est4=FlxQTL.gene1Scan(Tg,Λg,y,XX,1,true;penalize=true)
+@test sum(LOD4.<0.0)==0
+@test typeof(B4)==Array{Float64,3}
+for j=1:2
+       println(@test isposdef(est4[j].Vc)==true)
+       println(@test isposdef(est4[j].Σ)==true )
+       println(@test est4[j].loglik<=0.0)
+end
 # #environment scan
 # Q=findall(LOD0.==maximum(LOD0))
 # eLOD0,eB0,este0 =FlxQTL.envScan(Q,1,Tg,Tc,Λg,λc,y,XX,Ze,true)
@@ -98,8 +143,14 @@ end
 
 
 #2d-scan
-#no loco
+#no loco & no penalization
  LOD2d,est2d=FlxQTL.gene2Scan(1,T,λ,y,XX);
+@test sum(LOD2d.<0.0)==0
+@test est2d.τ2 >0.0
+@test isposdef(est2d.Σ)
+@test est2d.loglik <=0.0
+
+ LOD2d,est2d=FlxQTL.gene2Scan(1,T,λ,y,XX;Z=Z1);
 @test sum(LOD2d.<0.0)==0
 @test est2d.τ2 >0.0
 @test isposdef(est2d.Σ)
@@ -112,7 +163,35 @@ LOD2d0,est2d0=FlxQTL.gene2Scan(T,λ,y,XX,1)
 @test isposdef(est2d0.Σ)
 @test est2d0.loglik <=0.0
 
-#loco
+#penalization
+ LOD2d,est2d=FlxQTL.gene2Scan(1,T,λ,y,XX;penalize=true);
+@test sum(LOD2d.<0.0)==0
+@test est2d.τ2 >0.0
+@test isposdef(est2d.Σ)
+@test est2d.loglik <=0.0
+
+ LOD2d,est2d=FlxQTL.gene2Scan(1,T,λ,y,XX;penalize=true,Z=Z1);
+@test sum(LOD2d.<0.0)==0
+@test est2d.τ2 >0.0
+@test isposdef(est2d.Σ)
+@test est2d.loglik <=0.0
+
+#MVLMM
+LOD2d0,est2d0=FlxQTL.gene2Scan(T,λ,y,XX,1;penalize=true)
+@test sum(LOD2d0.<0.0)==0
+@test isposdef(est2d0.Vc)
+@test isposdef(est2d0.Σ)
+@test est2d0.loglik <=0.0
+
+#loco/ no penalization
+ LOD2d1,est2d1=FlxQTL.gene2Scan(1,Tg,Λg,y,XX,true;Z=Z1);
+@test sum(LOD2d1.<0.0)==0
+for j=1:2
+       println(@test est2d1[j].τ2 >0.0)
+       println(@test isposdef(est2d1[j].Σ)==true )
+       println(@test est2d1[j].loglik<=0.0)
+end
+
  LOD2d1,est2d1=FlxQTL.gene2Scan(1,Tg,Λg,y,XX,true);
 @test sum(LOD2d1.<0.0)==0
 for j=1:2
@@ -130,9 +209,41 @@ for j=1:2
        println(@test est2d2[j].loglik<=0.0)
 end
 
-#permutation: no loco
+# penalization
+LOD2d1,est2d1=FlxQTL.gene2Scan(1,Tg,Λg,y,XX,true;penalize=true,Z=Z1);
+@test sum(LOD2d1.<0.0)==0
+for j=1:2
+       println(@test est2d1[j].τ2 >0.0)
+       println(@test isposdef(est2d1[j].Σ)==true )
+       println(@test est2d1[j].loglik<=0.0)
+end
+
+ LOD2d1,est2d1=FlxQTL.gene2Scan(1,Tg,Λg,y,XX,true;penalize=true);
+@test sum(LOD2d1.<0.0)==0
+for j=1:2
+       println(@test est2d1[j].τ2 >0.0)
+       println(@test isposdef(est2d1[j].Σ)==true )
+       println(@test est2d1[j].loglik<=0.0)
+end
+
 #MVLMM
-maxLODs0, H1par_perm0, cutoff0= FlxQTL.mlmmTest(4,1,K,y,XX;pval=[0.10 0.05],df_prior=Int64(ceil(1.9m)))
+ LOD2d2,est2d2=FlxQTL.gene2Scan(Tg,Λg,y,XX,1,true;penalize=true);
+@test sum(LOD2d2.<0.0)==0
+for j=1:2
+       println(@test isposdef(est2d2[j].Vc)==true)
+       println(@test isposdef(est2d2[j].Σ)==true )
+       println(@test est2d2[j].loglik<=0.0)
+end
+
+#permutation: no loco 
+#MVLMM
+maxLODs0, H1par_perm0, cutoff0= mlmmTest(4,1,K,y,XX;pval=[0.10 0.05])
+@test sum(maxLODs0.<0.0)==0
+for j=1:2
+println(@test isless(0.0,cutoff0[j]))
+end
+
+maxLODs0, H1par_perm0, cutoff0= mlmmTest(4,1,K,y,XX,true;pval=[0.10 0.05],df_prior=Int64(ceil(1.9m)))
 @test sum(maxLODs0.<0.0)==0
 for j=1:2
 println(@test isless(0.0,cutoff0[j]))

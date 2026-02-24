@@ -8,8 +8,7 @@ A module for utility functions.
 """
 module Util
 
-using Random
-using Distributed
+using Distributed, Random
 import LossFunctions: HuberLoss
 import Distributions: Chisq,ccdf
 import StatsBase: mad, sample
@@ -18,34 +17,48 @@ import Statistics: mean, var, median
 
 """
 
-    setSeed(seedNum::Int64)
+    setSeed(seed::Integer))
 
-Assigns different numbers of seeds to workers (or processes) for reproducibility.
+Assigns different seed numbers to generated worker(s) in a deterministic and reproducibile way.
 
 # Arguments
 
-- `seedNum`: An integer.  A minimum seed number to assign a worker.  For distributed computing, seed numbers are generated for multiple workers by increasing 1, e.g. seedNum = 123 & 10 workers, `setSeed` generates seeds from 123 to 132 and assigns to corresponding workers (processes). 
+- `seed`: An integer. 
 
 # Examples
 
 ```julia
-julia> using Distributed
+julia> using Distributed, Random
 julia> addprocs(10)
-julia> @everywhere using flxQTL
+julia> @everywhere using FlxQTL
 julia> setSeed(123)
-
 ```
 
 """
-function setSeed(seedNum::Int64)
-np=nprocs();pid=procs()
-seed=collect(seedNum:1:seedNum+np-1)
+function setSeed(seed::Integer)
+   
+    if (nprocs()>1)
+        for j in procs()
+       @spawnat j  @show rand(Random.Xoshiro(seed + myid()))
+         end
+      
+    else
+        
+        return @show rand(Random.Xoshiro(seed + myid()))
+    end
 
-for i=1:np
-remotecall_fetch(()->Random.seed!(seed[i]),pid[i])
-#         println(pid[i])
 end
-end
+
+# for older Julia version: deprecated 
+#function setSeed(seedNum::Int64)
+# np=nprocs();pid=procs()
+# seed=collect(seedNum:1:seedNum+np-1)
+
+# for i=1:np
+# remotecall_fetch(()->Random.seed!(seed[i]),pid[i])
+# #         println(pid[i])
+# end
+# end
 
 ### 'using InteractiveUtils' to use @spawnat 3 whos 
 

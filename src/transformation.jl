@@ -230,7 +230,16 @@ function initial(Xnul,Y0,incl_τ2::Bool=true)
 
 end
 
-## nulScan : scan w/o qtl to obtain null parameter estimates
+## nulScan : scan w/o qtl to obtain null parameter estimates after getKc 
+function nulScan(init::Init,kmin,λg,λc,Y1,Xnul_t,Z1,Σt;ρ=0.001,itol=1e-3,tol=1e-4)
+
+            B0,τ2_0,Σ1,loglik0 =ecmLMM(Y1,Xnul_t,Z1,init.B,init.τ2,Σt,λg,λc;tol=itol)
+            nulpar=NestrvAG(kmin,Y1,Xnul_t,Z1,B0,τ2_0,Σ1,λg,λc;ρ=ρ,tol=tol)
+         
+    return nulpar
+end
+
+#including prior
 function nulScan(init::Init,kmin,λg,λc,Y1,Xnul_t,Z1,Σt,ν₀,Ψ;ρ=0.001,itol=1e-3,tol=1e-4)
 
             B0,τ2_0,Σ1,_ =ecmLMM(Y1,Xnul_t,Z1,init.B,init.τ2,Σt,λg,λc,ν₀,Ψ;tol=itol)
@@ -239,7 +248,34 @@ function nulScan(init::Init,kmin,λg,λc,Y1,Xnul_t,Z1,Σt,ν₀,Ψ;ρ=0.001,itol
     return nulpar
 end
 
-#including prior
+## no prior with estimated Kc
+function nulScan(init::InitKc,kmin,λg,λc,Y1,Xnul_t,Z1,Σt,H0_up::Bool;ρ=0.001,itol=1e-3,tol=1e-4)
+
+    B0,τ2_0,Σ1,_ =ecmLMM(Y1,Xnul_t,Z1,init.B,init.τ2,Σt,λg,λc;tol=itol)
+    nulpar=NestrvAG(kmin,Y1,Xnul_t,Z1,B0,τ2_0,Σ1,λg,λc;ρ=ρ,tol=tol)  #type: Approx
+    
+ if (H0_up) # null model update for high dimensional traits
+    return nulpar
+ else
+    return Approx(nulpar.B,nulpar.τ2,nulpar.Σ,init.loglik)
+ end
+
+end
+#Z=I
+function nulScan(init::InitKc,kmin,λg,λc,Y1,Xnul_t,Σt,H0_up::Bool;ρ=0.001,itol=1e-3,tol=1e-4)
+
+    B0,τ2_0,Σ1,_ =ecmLMM(Y1,Xnul_t,init.B,init.τ2,Σt,λg,λc;tol=itol)
+    nulpar=NestrvAG(kmin,Y1,Xnul_t,B0,τ2_0,Σ1,λg,λc;ρ=ρ,tol=tol)
+ 
+ if (H0_up) # null model update for high dimensional traits
+    return nulpar
+  else
+    return Approx(nulpar.B,nulpar.τ2,nulpar.Σ,init.loglik)
+  end
+
+end
+
+#including prior with estimated Kc
 function nulScan(init::InitKc,kmin,λg,λc,Y1,Xnul_t,Z1,Σt,ν₀,Ψ,H0_up::Bool;ρ=0.001,itol=1e-3,tol=1e-4)
 
     B0,τ2_0,Σ1,_ =ecmLMM(Y1,Xnul_t,Z1,init.B,init.τ2,Σt,λg,λc,ν₀,Ψ;tol=itol)
@@ -268,6 +304,15 @@ end
 
 
 #Z=I
+function nulScan(init::Init,kmin,λg,λc,Y1,Xnul_t,Σt;ρ=0.001,itol=1e-3,tol=1e-4)
+
+            B0,τ2_0,Σ1,_ =ecmLMM(Y1,Xnul_t,init.B,init.τ2,Σt,λg,λc;tol=itol)
+            nulpar= NestrvAG(kmin,Y1,Xnul_t,B0,τ2_0,Σ1,λg,λc;ρ=ρ,tol=tol)
+
+    return nulpar
+end
+
+#including prior
 function nulScan(init::Init,kmin,λg,λc,Y1,Xnul_t,Σt,ν₀,Ψ;ρ=0.001,itol=1e-3,tol=1e-4)
 
             B0,τ2_0,Σ1,_ =ecmLMM(Y1,Xnul_t,init.B,init.τ2,Σt,λg,λc,ν₀,Ψ;tol=itol)
@@ -280,13 +325,13 @@ end
 
 
 #MVLMM :Z=I
-# function nulScan(init::Init0,kmin,λg,Y1,Xnul_t;ρ=0.001,itol=1e-3,tol=1e-4)
+function nulScan(init::Init0,kmin,λg,Y1,Xnul_t;ρ=0.001,itol=1e-3,tol=1e-4)
 
-#         B0,Vc_0,Σ1,_ = ecmLMM(Y1,Xnul_t,init.B,init.Vc,init.Σ,λg;tol=itol)
-#         nulpar=NestrvAG(kmin,Y1,Xnul_t,B0,Vc_0,Σ1,λg;tol=tol,ρ=ρ)
+        B0,Vc_0,Σ1,_ = ecmLMM(Y1,Xnul_t,init.B,init.Vc,init.Σ,λg;tol=itol)
+        nulpar=NestrvAG(kmin,Y1,Xnul_t,B0,Vc_0,Σ1,λg;tol=tol,ρ=ρ)
 
-#        return nulpar
-# end
+       return nulpar
+end
 
 #including prior
 function nulScan(init::Init0,kmin,λg,Y1,Xnul_t,ν₀,Ψ;ρ=0.001,itol=1e-3,tol=1e-4)
@@ -316,74 +361,3 @@ function arrngB(H1par,p1::Int64,q,p,cross)
     return B
 end
 
-#  """
-
-#     getKc(Y::Array{Float64,2};m=size(Y,1),Z=diagm(ones(m)), df_prior=m+1,
-#            Prior::Matrix{Float64}=cov(Y,dims=2)*5,Xnul::Array{Float64,2}=ones(1,size(Y,2)),
-#            itol=1e-2,tol::Float64=1e-3,ρ=0.001)
-
-# Pre-estimate `Kc` by regressing `Y` on `Xnul`, i.e. estimating environmental covariates under `H0: no QTL`.
-
-# # Argument
-
-# - `Y` : A m x n matrix of response variables, i.e. m traits (or environments) by n individuals (or lines). For univariate phenotypes, use square brackets in arguement.
-#         i.e. `Y0[1,:]` (a vector) ->`Y[[1],:]` (a matrix) .
-
-# ## Keyword Arguments
-
-# - `Z` :  An optional m x q matrix of low-dimensional phenotypic covariates, i.e. contrasts, basis functions (fourier, wavelet, polynomials, B-splines, etc.).
-#         An identity matrix, ``I_m``, is default. 
-# - `Xnul` :  A matrix of covariates. Default is intercepts (1's): `Xnul= ones(1,size(Y0))`.  Adding covariates (C) is `Xnul= vcat(ones(1,m),C)` where `size(C)=(c,m)` for `m = size(Y0,1)`.
-# - `Prior`: A positive definite scale matrix, ``\\Psi``, of prior Inverse-Wishart distributon, i.e. ``\\Sigma \\sim W^{-1}_m (\\Psi, \\nu_0)``.  
-#            A large scaled covariance matrix (a weakly informative prior) is default.
-# - `df_prior`: degrees of freedom, ``\\nu_0`` for Inverse-Wishart distributon.  `m+1` (weakly informative) is default.
-# - `itol` :  A tolerance controlling ECM (Expectation Conditional Maximization) under H0: no QTL. Default is `1e-3`.
-# - `tol` : A tolerance of controlling Nesterov Acceleration Gradient method under both H0 and H1. Default is `1e-4`.
-# - `ρ` : A tunning parameter controlling ``\\tau^2``. Default is `0.001`.
-
-# # Output
-
-# - `InitKc` :  A type of struct of arrays, including pre-estimated `Kc`,`and null estimates of B`, `Σ`,`τ2`used as initial values inside 
-#      `gene1Scan`, one of [`geneScan`](@ref) functions, or [`gene2Scan`](@ref).
-
-# # Examples
-
-# ```
-# julia> K0 = getKc(Y)  
-# julia> K0.Kc  # for Kc
-# julia> K0.B # for B under H0
-
-# ```
-
-# """
-#  function getKc(Y::Array{Float64,2};m=size(Y,1),Z=diagm(ones(m)), df_prior=m+1,
-#      Prior::Matrix{Float64}=cov(Y,dims=2)*3,
-#      Xnul::Array{Float64,2}=ones(1,size(Y,2)),itol=1e-2,tol::Float64=1e-3,ρ=0.001)
-     
-#      if(Z!=diagm(ones(m)))
-#          init0=initial(Xnul,Y,Z,false)
-#       else #Z0=I
-#          init0=initial(Xnul,Y,false)
-#       end
- 
-#      est0= nul1Scan(init0,1,Y,Xnul,Z,m,df_prior,Prior;ρ=ρ,itol=itol,tol=tol)
-#        τ² =mean(Diagonal(est0.Vc)./m)
-#      return InitKc(est0.Vc, est0.B, est0.Σ, τ²,est0.loglik)
- 
-#  end
- 
-# ###########
-# #estimate Kc with prior
-# function nul1Scan(init::Init0,kmin,Y,Xnul,Z,m,ν₀,Ψ;ρ=0.001,itol=1e-3,tol=1e-4)
-       
-#       n=size(Y,2); λg=ones(n)
-
-#     if (Z!=diagm(ones(m)))   
-#         B0,Kc_0,Σ1,_ =ecmLMM(Y,Xnul,Z,init.B,init.Vc,init.Σ,λg,ν₀,Ψ;tol=itol)
-#         nulpar=NestrvAG(kmin,Y,Xnul,Z,B0,Kc_0,Σ1,λg,ν₀,Ψ;tol=tol,ρ=ρ)
-        
-#        else #Z=I
-#         nulpar = nulScan(init,kmin,λg,Y,Xnul,ν₀,Ψ;ρ=ρ,itol=itol,tol=tol)
-#      end
-#     return nulpar
-# end
