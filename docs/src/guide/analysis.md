@@ -167,15 +167,13 @@ The `QTLplot` module is currently unavailable but plotting functions will be rep
 
 ## Performing a permutation test
 
-Since the statistical inference for `FlxQTL` relies on LOD scores, we have now added three kinds of permutation test functions to estimate 
-thresholds for a type I error: `mlmmTest()`, `permTest()`, and `permutationTest()`.    `mlmmTest()` implements permutation test with no LOCO for MLMM models with a penalization option, `permTest()` estimates null parameters without LOCO first, followed by scan with permuted data with LOCO and penalization, and the third function has options of both penalization and LOCO.  `permutationTest()` can estimate null parameters from the actual data with LOCO, followed by LOCO scan with permuted data to obtain the distribution of maximum LOD scores when both options are on.  Thus, both options may be much longer than the first two but may yield better estimation.  Note that penalization is not neccessary for lower dimensional traits.
+Since the statistical inference for `FlxQTL` relies on LOD scores, we have now added two  permutation test functions to estimate 
+thresholds for a type I error: `mlmmTest()`and `permutationTest()`.  `mlmmTest()` implements permutation test with no LOCO for MLMM models with a penalization option.  `permutationTest()` can estimate null parameters from the actual data with/without LOCO, followed by (no-)LOCO scan with permuted data to obtain the distribution of maximum LOD scores regardless of penalization.  Thus, `mlmmTest()`, `permutationTest()` with LOCO can be much longer than `permutationTest()` without LOCO. Depending on the degree of correlation, such as inbred or outbred, of genotype (probability) data, LOCO may yield better estimation the other.  Note that penalization is not neccessary for lower dimensional traits.
 
 The first argument is `nperm::Int64` to set the number of permutations for the test.  For keyword arguments, `pval=[0.05 0.01]` is default to get thresholds of `type I error rates (α)`, and the identity matrix, i.e. `Z=diagm(ones(m))` is default. 
 
 
 ```julia
-maxLODs, H1par_perm, cutoff = permTest(1000,1,Kg,Ystd,XX;Z=Z,pval=[0.05]) # LOCO & penalization, cutoff at 5 %
-
 maxlods, H1par_perm1, cutoff1 = mlmmTest(1000,1,K,Ystd,XX,true;pval=[0.05])  # no LOCO & penalization for MLMM 
 
 Maxlods, H1par_loco, cutoff2 = permutationTest(1000,1,Kg,Ystd,XX,true,true;Z=Z) # LOCO + penalization

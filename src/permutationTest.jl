@@ -187,7 +187,7 @@ end
 
 
 
-function permutationTest(Kg::Union{Matrix{Float64},Array{Float64,3}},Y,XX::Markers,nperm::Int64,cross::Int64,LOCO::Bool=false;
+function pTest(Kg::Union{Matrix{Float64},Array{Float64,3}},Y,XX::Markers,nperm::Int64,cross::Int64,LOCO::Bool=false;
        pval=[0.05 0.01],m=size(Y,1),Z=diagm(ones(m)),Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
        
        p=Int(size(XX.X,1)/cross); n=size(Y,2); q=size(Z,2)
@@ -219,13 +219,9 @@ end
 
 """
 
-     permutationTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers,LOCO::Bool=false,penalize::Bool=false;pval=[0.05 0.01],
+     permutationTest(nperm::Int64,cross::Int64,Kg::Union{Matrix{Float64},Array{Float64,3}},Y::Array{Float64,2},XX::Markers,LOCO::Bool=false,penalize::Bool=false;pval=[0.05 0.01],
                      Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
                      itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
-
-     permTest(nperm,cross,Kg::Array{Float64,3},Y,XX;pval=[0.05 0.01],Z=diagm(ones(m)),df_prior=m+1,Prior=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
-              itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001,δ=0.01)
-                     
       
 Implement permutation test by estimating the distribution of maximum LOD scores to get thresholds at the levels of type 1 error, `α`.  
 The FlxQTL model is defined as 
@@ -240,8 +236,8 @@ where `Kg` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`
 !!! NOTE
 - `permutationTest()` has options of penalization as well as LOCO.  Depending on the data size and computer capacity, one can select any combination.  
    There may exist slight to moderate differences in the choice of LOCO and penalization.
-- `permTest()` is implemented by permutation test with LOCO, but ``\\Omega`` is estimated with a genetic kinship by [`kinshipLin`](@ref) without LOCO.
-- [`mlmmTest`](@ref) is implemented by the conventional MLMM without LOCO.  
+- [`mlmmTest`](@ref) is implemented by the conventional MLMM (Z=I) without LOCO, but with the penalization option.  Note that this is the slowest by estimating  
+   two covariance matrices (``\\Omega, \\Sigma``) in both models (H0, H1).   
 
 # Arguments
 
@@ -288,18 +284,18 @@ where `Kg` is a genetic kinship, and ``\\Omega \\approx \\tau^2V_C``, ``\\Sigma`
 
 
 """
-function permutationTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers,LOCO::Bool=false,penalize::Bool=false;pval=[0.05 0.01],m=size(Y,1),
+function permutationTest(nperm::Int64,cross::Int64,Kg::Union{Matrix{Float64},Array{Float64,3}},Y::Array{Float64,2},XX::Markers,LOCO::Bool=false,penalize::Bool=false;pval=[0.05 0.01],m=size(Y,1),
              Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
              itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
 
 
              if (!penalize) #no penalization
 
-               maxLODs, H1par, cutoff =  permutationTest(Kg,Y,XX,nperm,cross,LOCO;pval=pval,m=m,Z=Z,Xnul=Xnul,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
+               maxLODs, H1par, cutoff =  pTest(Kg,Y,XX,nperm,cross,LOCO;pval=pval,m=m,Z=Z,Xnul=Xnul,itol=itol,tol0=tol0,tol=tol,ρ=ρ)
 
              else
 
-               maxLODs, H1par, cutoff =  permutationTest(nperm,cross,Kg,Y,XX,LOCO;pval=pval,m=m,Z=Z,Xnul=Xnul,itol=itol,tol0=tol0,tol=tol,ρ=ρ,df_prior=df_prior,Prior=Prior)
+               maxLODs, H1par, cutoff =  pTest(nperm,cross,Kg,Y,XX,LOCO;pval=pval,m=m,Z=Z,Xnul=Xnul,itol=itol,tol0=tol0,tol=tol,ρ=ρ,df_prior=df_prior,Prior=Prior)
              end
 
       return maxLODs, H1par, cutoff
@@ -310,7 +306,7 @@ end
 #MVLMM
 """
 
-     mlmmTest(nperm::Int64,cross::Int64,Kg,Y,XX::Markers;pval=[0.05 0.01],df_prior=m+1,
+     mlmmTest(nperm::Int64,cross::Int64,Kg::Matrix{Float64},Y,XX::Markers;pval=[0.05 0.01],df_prior=m+1,
                  Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
    
 Implement permutation test without LOCO to get thresholds at the levels of type 1 error, `α` by 
@@ -354,7 +350,7 @@ the conventional MLMM (`Z=I`) with an option of penalization. See also [`permuta
 
 
 """
-function mlmmTest(nperm::Int64,cross::Int64,Kg,Y,XX::Markers,penalize::Bool=false;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,
+function mlmmTest(nperm::Int64,cross::Int64,Kg::Matrix{Float64},Y,XX::Markers,penalize::Bool=false;pval=[0.05 0.01],m=size(Y,1),df_prior=m+1,
                  Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),itol=1e-4,tol0=1e-3,tol=1e-4,ρ=0.001)
     #permutation without LOCO
      p=Int(size(XX.X,1)/cross);

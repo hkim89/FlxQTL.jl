@@ -271,7 +271,7 @@ end
 
 
 
-function permutationTest(nperm::Int64,cross::Int64,Kg,Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;pval=[0.05 0.01],m=size(Y,1),
+function pTest(nperm::Int64,cross::Int64,Kg::Union{Matrix{Float64},Array{Float64,3}},Y::Array{Float64,2},XX::Markers,LOCO::Bool=false;pval=[0.05 0.01],m=size(Y,1),
              Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
              itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001)
     
@@ -309,44 +309,44 @@ function permutationTest(nperm::Int64,cross::Int64,Kg,Y::Array{Float64,2},XX::Ma
 end
 
 
-### no-loco Kc + loco permutation test
-function permTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers;pval=[0.05 0.01],m=size(Y,1),
-             Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
-             itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001,δ=0.01)
+# ### no-loco Kc + loco permutation test
+# function permTest(nperm::Int64,cross::Int64,Kg::Array{Float64,3},Y::Array{Float64,2},XX::Markers;pval=[0.05 0.01],m=size(Y,1),
+#              Z=diagm(ones(m)),df_prior=m+1,Prior::Matrix{Float64}=cov(Y,dims=2)*3,Xnul=ones(1,size(Y,2)),
+#              itol=1e-4,tol0=1e-4,tol=1e-4,ρ=0.001,δ=0.01)
 
-              maxLODs = zeros(nperm);H1par=[]
+#               maxLODs = zeros(nperm);H1par=[]
 
-println("Estimate a kinship without LOCO for pre-estimating null variance component for $(m) traits.")
-     if (cross!=1)
-        K = kinshipLin(XX.X,cross)
-     else
-        K= kinshipStd(XX.X)
-     end
+# println("Estimate a kinship without LOCO for pre-estimating null variance component for $(m) traits.")
+#      if (cross!=1)
+#         K = kinshipLin(XX.X,cross)
+#      else
+#         K= kinshipStd(XX.X)
+#      end
     
-     if (!isposdef(K))
-        K= K+δ*I
-     println("Positive definiteness of the kinship is corrected to be ", isposdef(K),".")
-     end
-     Tg,Λg=K2eig(Kg,true)
-     println("Start estimating null parameters without LOCO for permutations.")
-     λc, tNul, initKc, Y0, X1, Xnul_t = scan0loco(cross,K,Tg,Λg,Y,XX,Z,n,m;Xnul=Xnul,df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
-    println("Start scanning genetic markers by the LOCO scheme with permuted $(m)-trait data") 
+#      if (!isposdef(K))
+#         K= K+δ*I
+#      println("Positive definiteness of the kinship is corrected to be ", isposdef(K),".")
+#      end
+#      Tg,Λg=K2eig(Kg,true)
+#      println("Start estimating null parameters without LOCO for permutations.")
+#      λc, tNul, initKc, Y0, X1, Xnul_t = scan0loco(cross,K,Tg,Λg,Y,XX,Z,n,m;Xnul=Xnul,df_prior=df_prior,Prior=Prior,itol=itol,tol=tol,ρ=ρ)
+#     println("Start scanning genetic markers by the LOCO scheme with permuted $(m)-trait data") 
     
     
-    for l = 1:nperm
-       maxLODs[l], H1par_perm=locoPermutation(cross,p,q,m,n,Y0,Xnul_t,X1,XX.chr,initKc,tNul,Λg,λc,df_prior;tol0=tol0,tol=tol,ρ=ρ)
-       H1par=[H1par;H1par_perm]
-             if (mod(l,100)==0)
-              println("Scan for $(l)th permutation is done.")
-             end
+#     for l = 1:nperm
+#        maxLODs[l], H1par_perm=locoPermutation(cross,p,q,m,n,Y0,Xnul_t,X1,XX.chr,initKc,tNul,Λg,λc,df_prior;tol0=tol0,tol=tol,ρ=ρ)
+#        H1par=[H1par;H1par_perm]
+#              if (mod(l,100)==0)
+#               println("Scan for $(l)th permutation is done.")
+#              end
 
-     end
+#      end
 
-    cutoff= quantile(maxLODs,1.0.-pval)
+#     cutoff= quantile(maxLODs,1.0.-pval)
    
-    return maxLODs, H1par, cutoff 
+#     return maxLODs, H1par, cutoff 
 
-end
+# end
 
 
 
