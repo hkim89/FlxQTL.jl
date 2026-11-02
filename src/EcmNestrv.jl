@@ -217,20 +217,13 @@ function cmStep!(Bnew::Array{Float64,2},dev::Array{Float64,2},Vg::Array{Float64,
     # update B, Vg(=τ2*Λc), Ve(=Σ)
       Bnew[:,:],dev[:,:] =cmStep(Y,X,Z,symXs,Ghat,Σ)
       Ehat=dev-Ghat
-    if(λc!= ones(m))
+    
            Λc= Diagonal(1.0./λc)
          @fastmath @inbounds @views for i in eachindex(λg)
            Ve[:,:,i]=Θ[i]
-           Vg[i]=tr(LinearAlgebra.lmul!(Λc,Float64.(Symmetric(BLAS.syr!('U',1.0,Ghat[:,i],Θ[i])))))/(λg[i]*m)
-           Ve[:,:,i]=Symmetric(BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i]))
+           Vg[i]=tr(LinearAlgebra.lmul!(Λc,BLAS.syr!('U',1.0,Ghat[:,i],Θ[i])))/(λg[i]*m)
+           BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i])
                   end
-       else
-         @fastmath @inbounds @views for i in eachindex(λg)
-         Ve[:,:,i]=Θ[i]
-         Vg[i]=tr(Symmetric(BLAS.syr!('U',1.0,Ghat[:,i],Θ[i])))/(λg[i]*m)
-         Ve[:,:,i]=Symmetric(BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i]))
-                 end
-    end
 
 end
 
@@ -243,20 +236,12 @@ function cmStep!(Bnew::Array{Float64,2},dev::Array{Float64,2},Vg::Array{Float64,
        Bnew[:,:],dev[:,:] =cmStep(Y,X,symXs,Ghat)
       Ehat=dev-Ghat
 
-    if(λc!= ones(m))
          Λc= Diagonal(1.0./λc)
          @fastmath @inbounds @views for i in eachindex(λg)
                Ve[:,:,i]=Θ[i]
-               Vg[i]=tr(LinearAlgebra.lmul!(Λc,Float64.(Symmetric(BLAS.syr!('U',1.0,Ghat[:,i],Θ[i])))))/(λg[i]*m)
-               Ve[:,:,i]=Symmetric(BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i]))
+               Vg[i]=tr(LinearAlgebra.lmul!(Λc,BLAS.syr!('U',1.0,Ghat[:,i],Θ[i])))/(λg[i]*m)
+               BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i])
                         end
-         else
-           @fastmath @inbounds @views for i in eachindex(λg)
-              Ve[:,:,i]=Θ[i]
-              Vg[i]=tr(Symmetric(BLAS.syr!('U',1.0,Ghat[:,i],Θ[i])))/(λg[i]*m)
-              Ve[:,:,i]=Symmetric(BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i]))
-                      end
-      end
 
 end
 
@@ -288,7 +273,7 @@ end
 #MVLMM: Z=I
 function cmStep!(Bnew::Array{Float64,2},dev::Array{Float64,2},Vg::Array{Float64,3},Ve::Array{Float64,3},Y::Array{Float64,2},
     X::Array{Float64,2},symXs::Array{Float64,2},Ghat::Array{Float64,2},Θ::Array{Array{Float64,2},1},
-        λg::Array{Float64,1},m::Int64)
+        λg::Array{Float64,1})
 
     # update B, Vg(=τ2*Λc), Ve(=Σ)
 #     B1= fixZ(Z,Σ)*(Σ\(Y-Ghat))*symXs
@@ -297,9 +282,9 @@ function cmStep!(Bnew::Array{Float64,2},dev::Array{Float64,2},Vg::Array{Float64,
      Ehat=dev-Ghat
 
      @fastmath @inbounds @views for i in eachindex(λg)
-        Ve[:,:,i]=Θ[i]
-        Vg[:,:,i]=Symmetric(BLAS.syr!('U',1.0,Ghat[:,i],Θ[i]))/λg[i]
-        Ve[:,:,i]=Symmetric(BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i]))
+        Ve[:,:,i]=Θ[i]; Vg[:,:,i]=Θ[i]
+        BLAS.syr!('U',1.0,Ghat[:,i],Vg[:,:,i])/λg[i]
+        BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i])
 
     end
 
@@ -309,7 +294,7 @@ end
 ## MVLMM 
 function cmStep!(Bnew::Array{Float64,2},dev::Array{Float64,2},Vg::Array{Float64,3},Ve::Array{Float64,3},Y::Array{Float64,2},
     X::Array{Float64,2},Z::Array{Float64,2},symXs::Array{Float64,2},Ghat::Array{Float64,2},Θ::Array{Array{Float64,2},1},
-       Σ::Array{Float64,2},λg::Array{Float64,1},m::Int64)
+       Σ::Array{Float64,2},λg::Array{Float64,1})
 
     # update B, Vg(=τ2*Λc), Ve(=Σ)
 #     B1= fixZ(Z,Σ)*(Σ\(Y-Ghat))*symXs
@@ -318,9 +303,9 @@ function cmStep!(Bnew::Array{Float64,2},dev::Array{Float64,2},Vg::Array{Float64,
      Ehat=dev-Ghat
 
      @fastmath @inbounds @views for i in eachindex(λg)
-        Ve[:,:,i]=Θ[i]
-        Vg[:,:,i]=Symmetric(BLAS.syr!('U',1.0,Ghat[:,i],Θ[i]))/λg[i]
-        Ve[:,:,i]=Symmetric(BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i]))
+        Ve[:,:,i]=Θ[i]; Vg[:,:,i]=Θ[i]
+        BLAS.syr!('U',1.0,Ghat[:,i],Vg[:,:,i])/λg[i]
+        BLAS.syr!('U',1.0,Ehat[:,i],Ve[:,:,i])
 
     end
 
@@ -630,7 +615,7 @@ function ecmNestrvAG(lod0::Float64,kmin::Int64,Y::Array{Float64,2},X::Array{Floa
 function fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,symXs,B,Vc::Array{Float64,2},Σ,λg,m)
 
           eStep!(Ghat,Θ,Y,X,B,Vc,Σ,λg,m)
-          cmStep!(B_new,dev,Vg,Ve,Y,X,symXs,Ghat,Θ,λg,m)
+          cmStep!(B_new,dev,Vg,Ve,Y,X,symXs,Ghat,Θ,λg)
           Vc_new=mean(Vg,dims=3)[:,:,1]; Σ_new=mean(Ve,dims=3)[:,:,1]
           loglik1=Loglik(dev,Σ_new,Vc_new,λg)
 
@@ -641,7 +626,7 @@ end
 function fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,Z,symXs,B::Array{Float64,2},Vc::Array{Float64,2},Σ,λg,m)
 
           eStep!(Ghat,Θ,Y,X,Z,B,Vc,Σ,λg,m)
-          cmStep!(B_new,dev,Vg,Ve,Y,X,Z,symXs,Ghat,Θ,Σ,λg,m)
+          cmStep!(B_new,dev,Vg,Ve,Y,X,Z,symXs,Ghat,Θ,Σ,λg)
           Vc_new=mean(Vg,dims=3)[:,:,1]; Σ_new=mean(Ve,dims=3)[:,:,1]
           loglik1=Loglik(dev,Σ_new,Vc_new,λg)
 
