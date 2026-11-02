@@ -257,7 +257,7 @@ end
 function fullECM(Vg,Ve,B_new,dev,Ghat,Θ,Y,X,Z,symXs,B::Array{Float64,2},Vc::Array{Float64,2},Σ,λg,m,n,ν₀,Ψ::Array{Float64})
 
           eStep!(Ghat,Θ,Y,X,Z,B,Vc,Σ,λg,m)
-          cmStep!(B_new,dev,Vg,Ve,Y,X,Z,symXs,Ghat,Θ,Σ,λg
+          cmStep!(B_new,dev,Vg,Ve,Y,X,Z,symXs,Ghat,Θ,Σ,λg)
           Vc_new=mean(Vg,dims=3)[:,:,1]; Σ_new=updateΣ(Ve,Ψ,ν₀,m,n)
           loglik1=Loglik(dev,Σ_new,Vc_new,λg)
 
